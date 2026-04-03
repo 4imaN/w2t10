@@ -11,14 +11,12 @@ function validateEnv() {
 
   if (!jwtSecret) {
     console.error('FATAL: JWT_SECRET environment variable is not set.');
-    console.error('Run ./setup.sh to generate a secure .env file, or set JWT_SECRET manually.');
-    console.error('Manual: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+    console.error('Docker auto-generates secrets. For manual runs, set JWT_SECRET.');
     process.exit(1);
   }
 
   if (process.env.NODE_ENV !== 'test' && INSECURE_DEFAULTS.includes(jwtSecret)) {
     console.error('FATAL: JWT_SECRET is set to an insecure default/placeholder value.');
-    console.error('Run ./setup.sh to generate a secure .env file, or replace the value manually.');
     process.exit(1);
   }
 

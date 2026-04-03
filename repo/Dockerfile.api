@@ -8,7 +8,9 @@ RUN npm ci --production
 COPY api/ ./
 
 RUN mkdir -p /app/uploads/posters /app/uploads/stills /app/uploads/imports
+COPY api/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3000
 
-CMD ["node", "src/app.js"]
+ENTRYPOINT ["./entrypoint.sh"]

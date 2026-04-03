@@ -5,20 +5,12 @@ Offline-first media operations platform unifying a local movie catalog, editoria
 ## Quick Start
 
 ```bash
-# 1. Generate a secure .env file (creates random JWT_SECRET and ENCRYPTION_KEY)
-./setup.sh
-
-# 2. Build and start all services
 docker compose up --build -d
-
-# 3. Open the application
 open http://localhost:8080
 ```
 
-> **First-time users:** You must run `./setup.sh` before `docker compose up`.
-> The API requires a real `JWT_SECRET` and `ENCRYPTION_KEY` — it will refuse to start
-> with placeholder values. The setup script generates cryptographically secure values
-> automatically.
+That's it. Secrets (`JWT_SECRET`, `ENCRYPTION_KEY`) are generated automatically inside the
+container on first start. No `.env` file or setup script required.
 
 The platform is accessible at **http://localhost:8080**.
 

@@ -20,7 +20,8 @@ services:
       context: .
       dockerfile: Dockerfile.api
     container_name: cineride-api
-    env_file: .env
+    environment:
+      - MONGO_URI=mongodb://cineride-db:27017/cineride
     depends_on:
       cineride-db:
         condition: service_healthy
