@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker exec:*)",
+      "Bash(curl -s http://localhost:8080/api/health)",
+      "Bash(curl -s -o /dev/null -w \"Frontend status: %{http_code}\" http://localhost:8080/)",
+      "Bash(curl -s -o /dev/null -w \"Frontend: %{http_code}\\\\n\" http://localhost:8080/)",
+      "Bash(curl -s -o /dev/null -w \"API Health: %{http_code}\\\\n\" http://localhost:8080/api/health)",
+      "Bash(node -e \"require\\(''''mongoose''''\\)\")",
+      "Bash(node -e \"require\\(''''./api/src/app''''\\)\")",
+      "Bash(npx jest:*)",
+      "Bash(mongosh mongodb://localhost:27017/cineride_test --eval \"db.adminCommand\\(''ping''\\)\" --quiet)",
+      "Bash(mongod --version)",
+      "Bash(brew services:*)",
+      "Bash(docker ps:*)",
+      "Bash(node:*)",
+      "Bash(JWT_SECRET=test-secret ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef npx jest unit_tests/env-validation.test.js --forceExit --verbose)",
+      "Bash(JWT_SECRET=test-secret-key-not-for-production ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef NODE_ENV=test npx jest unit_tests/ --forceExit --verbose)",
+      "Bash(npx vite:*)",
+      "Bash(JWT_SECRET=test-secret ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef NODE_ENV=test npx jest unit_tests/ --forceExit)",
+      "Bash(ls \"/Users/aimanmengesha/Desktop/eagle point/Slopering/Task_10/repo/frontend/\"*.config*)",
+      "Bash(npx vitest:*)",
+      "Bash(JWT_SECRET=test-secret ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef NODE_ENV=test npx jest unit_tests/ --forceExit --verbose)"
+    ]
+  }
+}

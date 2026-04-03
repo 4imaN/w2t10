@@ -1,0 +1,317 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CineRide Media Operations Platform API",
+    "version": "1.0.0",
+    "description": "REST API for the CineRide offline-first media operations platform. Manages movies, editorial content, ride requests, environmental sensors, and a local funds ledger."
+  },
+  "servers": [
+    { "url": "/api", "description": "Local API (via Nginx reverse proxy)" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "username": { "type": "string" },
+          "role": { "type": "string", "enum": ["administrator", "editor", "reviewer", "dispatcher", "regular_user"] },
+          "display_name": { "type": "string" },
+          "phone": { "type": "string", "description": "Masked for non-admins: (415) ***-**21" },
+          "status": { "type": "string", "enum": ["active", "inactive", "suspended"] }
+        }
+      },
+      "Movie": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "categories": { "type": "array", "items": { "type": "string" } },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "mpaa_rating": { "type": "string", "enum": ["G", "PG", "PG-13", "R", "NC-17", "NR"] },
+          "release_date": { "type": "string", "format": "date" },
+          "poster": { "type": "object" },
+          "stills": { "type": "array" },
+          "is_published": { "type": "boolean" },
+          "popularity_score": { "type": "number" }
+        }
+      },
+      "ContentItem": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "content_type": { "type": "string", "enum": ["article", "gallery", "video", "event"] },
+          "title": { "type": "string" },
+          "body": { "type": "string" },
+          "status": { "type": "string", "enum": ["draft", "in_review_1", "in_review_2", "scheduled", "published", "unpublished"] },
+          "author": { "type": "object" },
+          "scheduled_publish_date": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RideRequest": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "requester": { "type": "object" },
+          "pickup_text": { "type": "string" },
+          "dropoff_text": { "type": "string" },
+          "rider_count": { "type": "integer", "minimum": 1, "maximum": 6 },
+          "time_window_start": { "type": "string", "format": "date-time" },
+          "time_window_end": { "type": "string", "format": "date-time" },
+          "vehicle_type": { "type": "string", "enum": ["sedan", "suv", "van", "shuttle"] },
+          "status": { "type": "string", "enum": ["pending_match", "accepted", "in_progress", "completed", "canceled", "in_dispute"] },
+          "state_transitions": { "type": "array" }
+        }
+      },
+      "LedgerEntry": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "amount": { "type": "number" },
+          "payment_method": { "type": "string", "enum": ["cash", "card_on_file"] },
+          "receipt_number": { "type": "string" },
+          "idempotency_key": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "posted", "failed", "reconciled"] },
+          "ledger_date": { "type": "string" },
+          "day_closed": { "type": "boolean" }
+        }
+      },
+      "SensorReading": {
+        "type": "object",
+        "properties": {
+          "device_id": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "value": { "type": "number" },
+          "unit": { "type": "string" },
+          "is_raw": { "type": "boolean" },
+          "is_cleaned": { "type": "boolean" },
+          "outlier_flags": { "type": "object" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "details": { "type": "array" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": ["System"],
+        "responses": { "200": { "description": "Service is healthy" } }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login with username and password",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "username": { "type": "string" }, "password": { "type": "string" } }, "required": ["username", "password"] } } }
+        },
+        "responses": { "200": { "description": "JWT token and user info" }, "401": { "description": "Invalid credentials" } }
+      }
+    },
+    "/auth/logout": {
+      "post": { "summary": "Logout and revoke current session", "tags": ["Auth"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Logged out" } } }
+    },
+    "/auth/me": {
+      "get": { "summary": "Get current user info", "tags": ["Auth"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Current user" } } }
+    },
+    "/users": {
+      "get": { "summary": "List users (admin only)", "tags": ["Users"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "role", "in": "query", "schema": { "type": "string" } }], "responses": { "200": { "description": "User list" } } },
+      "post": { "summary": "Create user (admin only)", "tags": ["Users"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "User created" } } }
+    },
+    "/movies": {
+      "get": { "summary": "List movies", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "category", "in": "query", "schema": { "type": "string" } }, { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["popularity", "rating", "newest", "title"] } }], "responses": { "200": { "description": "Movie list" } } },
+      "post": { "summary": "Create movie (staff only)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Movie created" } } }
+    },
+    "/movies/{id}": {
+      "get": { "summary": "Get movie by ID", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie detail" } } },
+      "put": { "summary": "Update movie (staff only)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie updated" } } }
+    },
+    "/movies/{id}/poster": {
+      "post": { "summary": "Upload poster (JPG/PNG, max 10MB)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "poster": { "type": "string", "format": "binary" } } } } } }, "responses": { "200": { "description": "Poster uploaded" } } }
+    },
+    "/movies/{id}/unpublish": {
+      "post": { "summary": "Unpublish a movie", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie unpublished" } } }
+    },
+    "/movie-import/upload": {
+      "post": { "summary": "Upload import file (JSON/CSV)", "tags": ["Movie Import"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Import job created" } } }
+    },
+    "/movie-import/{jobId}/execute": {
+      "post": { "summary": "Execute import after conflict resolution", "tags": ["Movie Import"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Import executed" } } }
+    },
+    "/content": {
+      "get": { "summary": "List content items", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Content list" } } },
+      "post": { "summary": "Create content (staff only)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Content created" } } }
+    },
+    "/content/{id}/submit": {
+      "post": { "summary": "Submit content for review (triggers sensitive word scan)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Submitted or warning returned" } } }
+    },
+    "/content-review/{id}/review": {
+      "post": { "summary": "Review content (reviewer only, step 1 or 2)", "tags": ["Content Review"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "decision": { "type": "string", "enum": ["approved", "rejected"] }, "rejection_reason": { "type": "string" } } } } } }, "responses": { "200": { "description": "Review recorded" } } }
+    },
+    "/rides": {
+      "get": { "summary": "List ride requests", "tags": ["Rides"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Ride list" } } },
+      "post": { "summary": "Create ride request", "tags": ["Rides"], "security": [{ "BearerAuth": [] }], "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "pickup_text": { "type": "string" }, "dropoff_text": { "type": "string" }, "rider_count": { "type": "integer", "minimum": 1, "maximum": 6 }, "time_window_start": { "type": "string", "format": "date-time" }, "time_window_end": { "type": "string", "format": "date-time" }, "vehicle_type": { "type": "string" } } } } } }, "responses": { "201": { "description": "Ride created" } } }
+    },
+    "/rides/{id}/cancel": {
+      "post": { "summary": "Cancel ride (free within 5 min, otherwise requires dispatcher approval)", "tags": ["Rides"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Canceled or approval required" } } }
+    },
+    "/dispatch/queue": {
+      "get": { "summary": "Get dispatcher queue (pending rides)", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Pending rides" } } }
+    },
+    "/dispatch/rides/{id}/accept": {
+      "post": { "summary": "Accept/match a ride request", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Ride accepted" } } }
+    },
+    "/dispatch/disputes/{id}/resolve": {
+      "post": { "summary": "Resolve a dispute", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Dispute resolved" } } }
+    },
+    "/disputes": {
+      "post": { "summary": "Initiate a dispute (any role)", "tags": ["Disputes"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Dispute created" } } }
+    },
+    "/search": {
+      "get": { "summary": "Unified search across movies, content, users", "tags": ["Search"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["movie", "content", "user"] } }, { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["popularity", "rating", "newest"] } }], "responses": { "200": { "description": "Search results" } } }
+    },
+    "/search/suggest": {
+      "get": { "summary": "Get search suggestions (typo-tolerant)", "tags": ["Search"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Suggestions" } } }
+    },
+    "/recommendations/movies": {
+      "get": { "summary": "Get personalized movie recommendations", "tags": ["Recommendations"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Movie recommendations" } } }
+    },
+    "/sensors/ingest": {
+      "post": { "summary": "Ingest a single sensor reading", "tags": ["Sensors"], "description": "Requires X-Device-Id and X-Device-Secret headers. Body device_id must match authenticated device.", "parameters": [{ "name": "X-Device-Id", "in": "header", "required": true, "schema": { "type": "string" } }, { "name": "X-Device-Secret", "in": "header", "required": true, "schema": { "type": "string" } }], "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "device_id": { "type": "string" }, "timestamp": { "type": "string", "format": "date-time" }, "value": { "type": "number" } } } } } }, "responses": { "201": { "description": "Reading ingested" }, "401": { "description": "Invalid device credentials" }, "403": { "description": "Body/header device_id mismatch" } } }
+    },
+    "/sensors/ingest/batch": {
+      "post": { "summary": "Batch ingest sensor readings (resumable)", "tags": ["Sensors"], "description": "Requires X-Device-Id and X-Device-Secret headers. All readings must match authenticated device. Optional X-Batch-Session header for resumable transfer.", "parameters": [{ "name": "X-Device-Id", "in": "header", "required": true, "schema": { "type": "string" } }, { "name": "X-Device-Secret", "in": "header", "required": true, "schema": { "type": "string" } }, { "name": "X-Batch-Session", "in": "header", "schema": { "type": "string" } }], "responses": { "201": { "description": "Batch results with session_id for resume" }, "401": { "description": "Invalid device credentials" }, "403": { "description": "Batch contains mismatched device_id" } } }
+    },
+    "/sensors/devices": {
+      "get": { "summary": "List sensor devices", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Device list" } } },
+      "post": { "summary": "Register sensor device (admin only)", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Device created" } } }
+    },
+    "/ledger/entries": {
+      "post": { "summary": "Record a payment (idempotent)", "tags": ["Ledger"], "security": [{ "BearerAuth": [] }], "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "amount": { "type": "number" }, "payment_method": { "type": "string", "enum": ["cash", "card_on_file"] }, "receipt_number": { "type": "string" }, "idempotency_key": { "type": "string" } } } } } }, "responses": { "201": { "description": "Entry recorded" } } },
+      "get": { "summary": "List ledger entries", "tags": ["Ledger"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Entry list" } } }
+    },
+    "/ledger/reconciliation/{date}": {
+      "get": { "summary": "Get reconciliation for a date", "tags": ["Ledger"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "date", "in": "path", "required": true, "schema": { "type": "string", "format": "date" } }], "responses": { "200": { "description": "Reconciliation record" } } }
+    },
+    "/ledger/reconciliation/{date}/close": {
+      "post": { "summary": "Close day (makes records immutable)", "tags": ["Ledger"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "date", "in": "path", "required": true, "schema": { "type": "string", "format": "date" } }], "responses": { "200": { "description": "Day closed" } } }
+    },
+    "/config": {
+      "get": { "summary": "List config entries (admin only)", "tags": ["Config"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Config list" } } },
+      "post": { "summary": "Create/update config entry", "tags": ["Config"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Config saved" } } }
+    },
+    "/extensions/clients": {
+      "post": { "summary": "Create extension API client (admin only)", "tags": ["Extensions"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Client created with API key (shown once)" } } },
+      "get": { "summary": "List extension clients", "tags": ["Extensions"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Client list" } } }
+    },
+    "/extensions/movies": {
+      "get": { "summary": "Read movies via extension API", "tags": ["Extensions"], "security": [{ "ApiKeyAuth": [] }], "responses": { "200": { "description": "Movies" } } }
+    },
+    "/auth/change-password": {
+      "post": { "summary": "Change password (required for bootstrap accounts)", "tags": ["Auth"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Password changed" }, "422": { "description": "Validation error" } } }
+    },
+    "/auth/sessions": {
+      "get": { "summary": "List active sessions", "tags": ["Auth"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Session list" } } }
+    },
+    "/auth/revoke-sessions": {
+      "post": { "summary": "Revoke all other sessions", "tags": ["Auth"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Sessions revoked" } } }
+    },
+    "/users/{id}": {
+      "get": { "summary": "Get user by ID (admin)", "tags": ["Users"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "User detail" } } },
+      "put": { "summary": "Update user (admin)", "tags": ["Users"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "User updated" } } },
+      "delete": { "summary": "Delete user (admin)", "tags": ["Users"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "User deleted" } } }
+    },
+    "/movies/{id}/republish": {
+      "post": { "summary": "Republish a movie (staff)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie republished" } } }
+    },
+    "/movies/{id}/stills": {
+      "post": { "summary": "Upload stills (JPG/PNG, staff)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Stills uploaded" } } }
+    },
+    "/movies/{id}/revisions": {
+      "get": { "summary": "Get movie revision history (staff)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Revision list" } } }
+    },
+    "/content/{id}": {
+      "get": { "summary": "Get content item (published for non-editorial)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Content detail" } } },
+      "put": { "summary": "Update draft content (staff)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Content updated" } } }
+    },
+    "/content/{id}/reviews": {
+      "get": { "summary": "Get content review history (editorial)", "tags": ["Content Review"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Review history" } } }
+    },
+    "/content/{id}/unpublish": {
+      "post": { "summary": "Unpublish content (staff)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Content unpublished" } } }
+    },
+    "/rides/{id}": {
+      "get": { "summary": "Get ride detail (own rides for users, all for dispatch)", "tags": ["Rides"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Ride detail" } } }
+    },
+    "/rides/{id}/feedback": {
+      "post": { "summary": "Submit ride feedback (requester only, completed rides)", "tags": ["Rides"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Feedback submitted" } } }
+    },
+    "/dispatch/rides/{id}/transition": {
+      "post": { "summary": "Transition ride status (dispatcher)", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Ride transitioned" } } }
+    },
+    "/dispatch/rides/{id}/approve-cancel": {
+      "post": { "summary": "Approve ride cancellation (dispatcher)", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Cancellation approved" } } }
+    },
+    "/dispatch/disputes": {
+      "get": { "summary": "List disputes (dispatcher)", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Dispute list" } } }
+    },
+    "/dispatch/disputes/{id}": {
+      "get": { "summary": "Get dispute detail", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Dispute detail" } } }
+    },
+    "/dispatch/disputes/{id}/assign": {
+      "post": { "summary": "Assign dispute to self", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Dispute assigned" } } }
+    },
+    "/dispatch/carpool/candidates/{id}": {
+      "get": { "summary": "Get carpool candidates for a ride", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Candidate list" } } }
+    },
+    "/dispatch/carpool/group": {
+      "post": { "summary": "Group rides into carpool", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Carpool group created" } } }
+    },
+    "/sensors/devices/{id}": {
+      "get": { "summary": "Get sensor device detail", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Device detail" } } },
+      "put": { "summary": "Update sensor device (admin)", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Device updated" } } }
+    },
+    "/sensors/devices/{id}/rotate-secret": {
+      "post": { "summary": "Rotate device secret (admin)", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "New secret returned" } } }
+    },
+    "/sensors/readings/{deviceId}": {
+      "get": { "summary": "Get sensor readings", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "deviceId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Reading list" } } }
+    },
+    "/recommendations/content": {
+      "get": { "summary": "Get content recommendations", "tags": ["Recommendations"], "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Content recommendations" } } }
+    },
+    "/config/{key}": {
+      "get": { "summary": "Get config value (admin)", "tags": ["Config"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "key", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Config value" } } },
+      "put": { "summary": "Update config value (admin)", "tags": ["Config"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "key", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Config updated" } } },
+      "delete": { "summary": "Delete config key (admin)", "tags": ["Config"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "key", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Config deleted" } } }
+    },
+    "/extensions/content": {
+      "get": { "summary": "Read content via extension API", "tags": ["Extensions"], "security": [{ "ApiKeyAuth": [] }], "responses": { "200": { "description": "Content" } } }
+    },
+    "/extensions/rides": {
+      "get": { "summary": "Read rides via extension API", "tags": ["Extensions"], "security": [{ "ApiKeyAuth": [] }], "responses": { "200": { "description": "Rides" } } }
+    }
+  }
+}

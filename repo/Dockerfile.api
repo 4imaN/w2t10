@@ -1,0 +1,14 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY api/package*.json ./
+RUN npm ci --production
+
+COPY api/ ./
+
+RUN mkdir -p /app/uploads/posters /app/uploads/stills /app/uploads/imports
+
+EXPOSE 3000
+
+CMD ["node", "src/app.js"]

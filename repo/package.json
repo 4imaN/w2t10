@@ -1,0 +1,32 @@
+{
+  "name": "cineride",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CineRide Media Operations Platform",
+  "scripts": {
+    "test": "jest --forceExit --detectOpenHandles --verbose",
+    "test:unit": "jest unit_tests/ --forceExit --detectOpenHandles --verbose",
+    "test:api": "node scripts/check-mongo.js && jest API_tests/ --forceExit --detectOpenHandles --verbose --runInBand",
+    "test:api:mem": "jest API_tests/auth-password.test.js API_tests/rbac-executable.test.js API_tests/password-gate.test.js API_tests/movie-import-exec.test.js API_tests/phone-encryption.test.js --forceExit --detectOpenHandles --verbose",
+    "test:setup-db": "node scripts/setup-test-db.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "fuse.js": "^7.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.6.3",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "swagger-ui-express": "^5.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^11.0.1",
+    "supertest": "^6.3.3"
+  }
+}
