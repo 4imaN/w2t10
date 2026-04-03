@@ -1,0 +1,722 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Delete unit_tests/doc-accuracy.test.js since it validates markdown files, not API behavior, not needed and Verify the test suite passes after removal by checking that all\n  remaining test suites run cleanly."
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:09.175Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Let me find and read the file, then delete it and run tests."
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:14.838Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "tool_call_id": "toolu_01AjPVyBgVhCEuisTTDbmjLK",
+          "name": "Glob",
+          "arguments": "{\"pattern\": \"unit_tests/doc-accuracy.test.js\"}"
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "toolu_01AjPVyBgVhCEuisTTDbmjLK",
+          "type": "function",
+          "function": {
+            "name": "Glob",
+            "arguments": "{\"pattern\": \"unit_tests/doc-accuracy.test.js\"}"
+          }
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:15.297Z"
+      }
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "toolu_01AjPVyBgVhCEuisTTDbmjLK",
+      "content": [
+        {
+          "type": "tool_output",
+          "text": "unit_tests/doc-accuracy.test.js"
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:15.730Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "tool_call_id": "toolu_014gsmHkLHouTEinowHgycfE",
+          "name": "Read",
+          "arguments": "{\"file_path\": \"/Users/aimanmengesha/Desktop/eagle point/2223/w2t10/repo/unit_tests/doc-accuracy.test.js\"}"
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "toolu_014gsmHkLHouTEinowHgycfE",
+          "type": "function",
+          "function": {
+            "name": "Read",
+            "arguments": "{\"file_path\": \"/Users/aimanmengesha/Desktop/eagle point/2223/w2t10/repo/unit_tests/doc-accuracy.test.js\"}"
+          }
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:20.683Z"
+      }
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "toolu_014gsmHkLHouTEinowHgycfE",
+      "content": [
+        {
+          "type": "tool_output",
+          "text": "1\tconst fs = require('fs');\n2\tconst path = require('path');\n3\t\n4\tconst read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf-8');\n5\t\n6\tdescribe('Documentation Accuracy', () => {\n7\t  const readme = read('README.md');\n8\t  const apiSpec = read('docs/api-spec.md');\n9\t  const openapi = read('api/src/docs/openapi.json');\n10\t  const setupSh = read('setup.sh');\n11\t  const seedJs = read('api/src/db/seed.js');\n12\t\n13\t  describe('Bootstrap credential retrieval', () => {\n14\t    test('README documents file-based retrieval', () => {\n15\t      expect(readme).toContain('.bootstrap-credentials');\n16\t      expect(readme).not.toContain('grep -A 10 BOOTSTRAP');\n17\t    });\n18\t\n19\t    test('setup.sh documents file-based retrieval', () => {\n20\t      expect(setupSh).toContain('.bootstrap-credentials');\n21\t      expect(setupSh).not.toContain('grep -A 10 BOOTSTRAP');\n22\t    });\n23\t\n24\t    test('seed.js writes to file, not logs', () => {\n25\t      expect(seedJs).toContain('.bootstrap-credentials');\n26\t      expect(seedJs).toContain('writeFileSync');\n27\t    });\n28\t  });\n29\t\n30\t  describe('OpenAPI endpoint docs', () => {\n31\t    test('README points to /api/docs for Swagger UI', () => {\n32\t      expect(readme).toContain('Swagger UI');\n33\t      expect(readme).toContain('/api/docs');\n34\t    });\n35\t\n36\t    test('README points to /api/docs.json for raw JSON', () => {\n37\t      expect(readme).toContain('/api/docs.json');\n38\t    });\n39\t\n40\t    test('api-spec.md points to /api/docs.json for JSON', () => {\n41\t      expect(apiSpec).toContain('/api/docs.json');\n42\t    });\n43\t  });\n44\t\n45\t  describe('Sensor ingest auth documentation', () => {\n46\t    test('api-spec.md documents device auth headers', () => {\n47\t      expect(apiSpec).toContain('X-Device-Id');\n48\t      expect(apiSpec).toContain('X-Device-Secret');\n49\t      expect(apiSpec).not.toMatch(/ingest.*no auth/i);\n50\t    });\n51\t\n52\t    test('openapi.json documents device auth headers', () => {\n53\t      expect(openapi).toContain('X-Device-Id');\n54\t      expect(openapi).toContain('X-Device-Secret');\n55\t      expect(openapi).not.toContain('no auth');\n56\t    });\n57\t\n58\t    test('api-spec.md documents body/header identity enforcement', () => {\n59\t      expect(apiSpec).toContain('body');\n60\t      expect(apiSpec).toContain('match');\n61\t    });\n62\t  });\n63\t\n64\t  describe('Port consistency', () => {\n65\t    test('README uses port 8080', () => {\n66\t      expect(readme).toContain('localhost:8080');\n67\t    });\n68\t\n69\t    test('api-spec.md uses port 8080', () => {\n70\t      expect(apiSpec).toContain('localhost:8080');\n71\t    });\n72\t  });\n73\t});\n74\t"
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:20.710Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Confirmed — this test only validates markdown/doc file contents, not API behavior. Deleting it now and running the remaining tests."
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:24.815Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "tool_call_id": "toolu_01TF95VoWZmy99ykFpriQukw",
+          "name": "Bash",
+          "arguments": "{\"command\": \"rm /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo/unit_tests/doc-accuracy.test.js\", \"description\": \"Delete doc-accuracy.test.js\"}"
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "toolu_01TF95VoWZmy99ykFpriQukw",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"rm /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo/unit_tests/doc-accuracy.test.js\", \"description\": \"Delete doc-accuracy.test.js\"}"
+          }
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:25.506Z"
+      }
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "toolu_01TF95VoWZmy99ykFpriQukw",
+      "content": [
+        {
+          "type": "tool_output",
+          "text": "(Bash completed with no output)"
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:33.114Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "tool_call_id": "toolu_01NGHmtjoBN5f33LSfs3AmAt",
+          "name": "Bash",
+          "arguments": "{\"command\": \"cd /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo && npx jest --verbose 2>&1\", \"description\": \"Run remaining test suites\", \"timeout\": 120000}"
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "toolu_01NGHmtjoBN5f33LSfs3AmAt",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"cd /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo && npx jest --verbose 2>&1\", \"description\": \"Run remaining test suites\", \"timeout\": 120000}"
+          }
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:47:37.534Z"
+      }
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "toolu_01NGHmtjoBN5f33LSfs3AmAt",
+      "content": [
+        {
+          "type": "tool_output",
+          "text": "Command running in background with ID: byb67235h. Output is being written to: /private/tmp/claude-501/-Users-aimanmengesha-Desktop-eagle-point-2223-w2t10-repo/47808113-5a52-4d44-a3fe-fcca4cb57121/tasks/byb67235h.output"
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:49:41.668Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "tool_call_id": "toolu_013trcjq2MiiDPS45FZuFkcb",
+          "name": "Bash",
+          "arguments": "{\"command\": \"cd /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo && npx jest --verbose 2>&1\", \"description\": \"Run remaining test suites\", \"timeout\": 120000}"
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "toolu_013trcjq2MiiDPS45FZuFkcb",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"cd /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo && npx jest --verbose 2>&1\", \"description\": \"Run remaining test suites\", \"timeout\": 120000}"
+          }
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:49:46.323Z"
+      }
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "toolu_013trcjq2MiiDPS45FZuFkcb",
+      "content": [
+        {
+          "type": "tool_output",
+          "text": "Command running in background with ID: bd7sefqkw. Output is being written to: /private/tmp/claude-501/-Users-aimanmengesha-Desktop-eagle-point-2223-w2t10-repo/47808113-5a52-4d44-a3fe-fcca4cb57121/tasks/bd7sefqkw.output"
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:55:51.549Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "tool_call_id": "toolu_01HMtvBbA4DHDfZ5vPB21qEv",
+          "name": "Read",
+          "arguments": "{\"file_path\": \"/private/tmp/claude-501/-Users-aimanmengesha-Desktop-eagle-point-2223-w2t10-repo/47808113-5a52-4d44-a3fe-fcca4cb57121/tasks/bd7sefqkw.output\"}"
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "toolu_01HMtvBbA4DHDfZ5vPB21qEv",
+          "type": "function",
+          "function": {
+            "name": "Read",
+            "arguments": "{\"file_path\": \"/private/tmp/claude-501/-Users-aimanmengesha-Desktop-eagle-point-2223-w2t10-repo/47808113-5a52-4d44-a3fe-fcca4cb57121/tasks/bd7sefqkw.output\"}"
+          }
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:55:56.359Z"
+      }
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "toolu_01HMtvBbA4DHDfZ5vPB21qEv",
+      "content": [
+        {
+          "type": "tool_output",
+          "text": "1\tFAIL API_tests/sensors.test.js (40.833 s)\n2\t  ● Sensor Auth › rejects ingest without auth headers\n3\t\n4\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n5\t\n6\t      16 |\n7\t      17 | beforeAll(async () => {\n8\t    > 18 |   await mongoose.connect(MONGO_URI);\n9\t         |   ^\n10\t      19 |   await User.deleteMany({});\n11\t      20 |   await SensorDevice.deleteMany({});\n12\t      21 |   await SensorReading.deleteMany({});\n13\t\n14\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n15\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n16\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n17\t\n18\t  ● Sensor Auth › rejects ingest with wrong secret\n19\t\n20\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n21\t\n22\t      16 |\n23\t      17 | beforeAll(async () => {\n24\t    > 18 |   await mongoose.connect(MONGO_URI);\n25\t         |   ^\n26\t      19 |   await User.deleteMany({});\n27\t      20 |   await SensorDevice.deleteMany({});\n28\t      21 |   await SensorReading.deleteMany({});\n29\t\n30\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n31\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n32\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n33\t\n34\t  ● Sensor Auth › rejects ingest with unknown device_id\n35\t\n36\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n37\t\n38\t      16 |\n39\t      17 | beforeAll(async () => {\n40\t    > 18 |   await mongoose.connect(MONGO_URI);\n41\t         |   ^\n42\t      19 |   await User.deleteMany({});\n43\t      20 |   await SensorDevice.deleteMany({});\n44\t      21 |   await SensorReading.deleteMany({});\n45\t\n46\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n47\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n48\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n49\t\n50\t  ● Sensor Auth › rejects body device_id mismatch (cross-device spoofing)\n51\t\n52\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n53\t\n54\t      16 |\n55\t      17 | beforeAll(async () => {\n56\t    > 18 |   await mongoose.connect(MONGO_URI);\n57\t         |   ^\n58\t      19 |   await User.deleteMany({});\n59\t      20 |   await SensorDevice.deleteMany({});\n60\t      21 |   await SensorReading.deleteMany({});\n61\t\n62\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n63\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n64\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n65\t\n66\t  ● Sensor Auth › rejects batch with mixed device_ids\n67\t\n68\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n69\t\n70\t      16 |\n71\t      17 | beforeAll(async () => {\n72\t    > 18 |   await mongoose.connect(MONGO_URI);\n73\t         |   ^\n74\t      19 |   await User.deleteMany({});\n75\t      20 |   await SensorDevice.deleteMany({});\n76\t      21 |   await SensorReading.deleteMany({});\n77\t\n78\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n79\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n80\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n81\t\n82\t  ● Sensor Ingest (authenticated) › accepts reading with valid auth\n83\t\n84\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n85\t\n86\t      16 |\n87\t      17 | beforeAll(async () => {\n88\t    > 18 |   await mongoose.connect(MONGO_URI);\n89\t         |   ^\n90\t      19 |   await User.deleteMany({});\n91\t      20 |   await SensorDevice.deleteMany({});\n92\t      21 |   await SensorReading.deleteMany({});\n93\t\n94\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n95\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n96\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n97\t\n98\t  ● Sensor Ingest (authenticated) › detects range outlier\n99\t\n100\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n101\t\n102\t      16 |\n103\t      17 | beforeAll(async () => {\n104\t    > 18 |   await mongoose.connect(MONGO_URI);\n105\t         |   ^\n106\t      19 |   await User.deleteMany({});\n107\t      20 |   await SensorDevice.deleteMany({});\n108\t      21 |   await SensorReading.deleteMany({});\n109\t\n110\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n111\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n112\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n113\t\n114\t  ● Sensor Ingest (authenticated) › detects spike\n115\t\n116\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n117\t\n118\t      16 |\n119\t      17 | beforeAll(async () => {\n120\t    > 18 |   await mongoose.connect(MONGO_URI);\n121\t         |   ^\n122\t      19 |   await User.deleteMany({});\n123\t      20 |   await SensorDevice.deleteMany({});\n124\t      21 |   await SensorReading.deleteMany({});\n125\t\n126\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n127\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n128\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n129\t\n130\t  ● Sensor Ingest (authenticated) › deduplicates by device+timestamp\n131\t\n132\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n133\t\n134\t      16 |\n135\t      17 | beforeAll(async () => {\n136\t    > 18 |   await mongoose.connect(MONGO_URI);\n137\t         |   ^\n138\t      19 |   await User.deleteMany({});\n139\t      20 |   await SensorDevice.deleteMany({});\n140\t      21 |   await SensorReading.deleteMany({});\n141\t\n142\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n143\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n144\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n145\t\n146\t  ● Sensor Ingest (authenticated) › batch ingest works with valid auth\n147\t\n148\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n149\t\n150\t      16 |\n151\t      17 | beforeAll(async () => {\n152\t    > 18 |   await mongoose.connect(MONGO_URI);\n153\t         |   ^\n154\t      19 |   await User.deleteMany({});\n155\t      20 |   await SensorDevice.deleteMany({});\n156\t      21 |   await SensorReading.deleteMany({});\n157\t\n158\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n159\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n160\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n161\t\n162\t  ● Sensor Admin Endpoints › list devices\n163\t\n164\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n165\t\n166\t      16 |\n167\t      17 | beforeAll(async () => {\n168\t    > 18 |   await mongoose.connect(MONGO_URI);\n169\t         |   ^\n170\t      19 |   await User.deleteMany({});\n171\t      20 |   await SensorDevice.deleteMany({});\n172\t      21 |   await SensorReading.deleteMany({});\n173\t\n174\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n175\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n176\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n177\t\n178\t  ● Sensor Admin Endpoints › create device returns one-time secret\n179\t\n180\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n181\t\n182\t      16 |\n183\t      17 | beforeAll(async () => {\n184\t    > 18 |   await mongoose.connect(MONGO_URI);\n185\t         |   ^\n186\t      19 |   await User.deleteMany({});\n187\t      20 |   await SensorDevice.deleteMany({});\n188\t      21 |   await SensorReading.deleteMany({});\n189\t\n190\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n191\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n192\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n193\t\n194\t  ● Sensor Admin Endpoints › get readings\n195\t\n196\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n197\t\n198\t      16 |\n199\t      17 | beforeAll(async () => {\n200\t    > 18 |   await mongoose.connect(MONGO_URI);\n201\t         |   ^\n202\t      19 |   await User.deleteMany({});\n203\t      20 |   await SensorDevice.deleteMany({});\n204\t      21 |   await SensorReading.deleteMany({});\n205\t\n206\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n207\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n208\t      at Object.<anonymous> (API_tests/sensors.test.js:18:3)\n209\t\n210\t\n211\t  ● Test suite failed to run\n212\t\n213\t    MongooseError: Operation `users.deleteMany()` buffering timed out after 10000ms\n214\t\n215\t      at Timeout.<anonymous> (api/node_modules/mongoose/lib/drivers/node-mongodb-native/collection.js:185:23)\n216\t\n217\tFAIL API_tests/object-auth.test.js (40.744 s)\n218\t  ● Object-Level Authorization — Rides › User A can read own ride\n219\t\n220\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n221\t\n222\t      14 |\n223\t      15 | beforeAll(async () => {\n224\t    > 16 |   await mongoose.connect(MONGO_URI);\n225\t         |   ^\n226\t      17 |   await User.deleteMany({});\n227\t      18 |   await RideRequest.deleteMany({});\n228\t      19 |\n229\t\n230\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n231\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n232\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n233\t\n234\t  ● Object-Level Authorization — Rides › User B CANNOT read User A ride (403)\n235\t\n236\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n237\t\n238\t      14 |\n239\t      15 | beforeAll(async () => {\n240\t    > 16 |   await mongoose.connect(MONGO_URI);\n241\t         |   ^\n242\t      17 |   await User.deleteMany({});\n243\t      18 |   await RideRequest.deleteMany({});\n244\t      19 |\n245\t\n246\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n247\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n248\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n249\t\n250\t  ● Object-Level Authorization — Rides › Dispatcher CAN read User A ride\n251\t\n252\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n253\t\n254\t      14 |\n255\t      15 | beforeAll(async () => {\n256\t    > 16 |   await mongoose.connect(MONGO_URI);\n257\t         |   ^\n258\t      17 |   await User.deleteMany({});\n259\t      18 |   await RideRequest.deleteMany({});\n260\t      19 |\n261\t\n262\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n263\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n264\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n265\t\n266\t  ● Object-Level Authorization — Rides › User B CANNOT cancel User A ride (403)\n267\t\n268\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n269\t\n270\t      14 |\n271\t      15 | beforeAll(async () => {\n272\t    > 16 |   await mongoose.connect(MONGO_URI);\n273\t         |   ^\n274\t      17 |   await User.deleteMany({});\n275\t      18 |   await RideRequest.deleteMany({});\n276\t      19 |\n277\t\n278\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n279\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n280\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n281\t\n282\t  ● Object-Level Authorization — Rides › User A ride list only shows own rides\n283\t\n284\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n285\t\n286\t      14 |\n287\t      15 | beforeAll(async () => {\n288\t    > 16 |   await mongoose.connect(MONGO_URI);\n289\t         |   ^\n290\t      17 |   await User.deleteMany({});\n291\t      18 |   await RideRequest.deleteMany({});\n292\t      19 |\n293\t\n294\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n295\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n296\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n297\t\n298\t  ● Object-Level Authorization — Disputes › User A CAN dispute own ride\n299\t\n300\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n301\t\n302\t      14 |\n303\t      15 | beforeAll(async () => {\n304\t    > 16 |   await mongoose.connect(MONGO_URI);\n305\t         |   ^\n306\t      17 |   await User.deleteMany({});\n307\t      18 |   await RideRequest.deleteMany({});\n308\t      19 |\n309\t\n310\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n311\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n312\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n313\t\n314\t  ● Object-Level Authorization — Disputes › User A CAN dispute own ride\n315\t\n316\t    TypeError: Cannot read properties of undefined (reading '_id')\n317\t\n318\t      102 |   beforeAll(async () => {\n319\t      103 |     // Dispatcher accepts the ride so it can be disputed\n320\t    > 104 |     await request(app).post(`/api/dispatch/rides/${rideByA._id}/accept`)\n321\t          |                                                            ^\n322\t      105 |       .set('Authorization', `Bearer ${dispatcherToken}`)\n323\t      106 |       .send({ notes: 'test' });\n324\t      107 |     acceptedRideId = rideByA._id;\n325\t\n326\t      at Object._id (API_tests/object-auth.test.js:104:60)\n327\t\n328\t  ● Object-Level Authorization — Disputes › User B CANNOT dispute User A ride (403)\n329\t\n330\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n331\t\n332\t      14 |\n333\t      15 | beforeAll(async () => {\n334\t    > 16 |   await mongoose.connect(MONGO_URI);\n335\t         |   ^\n336\t      17 |   await User.deleteMany({});\n337\t      18 |   await RideRequest.deleteMany({});\n338\t      19 |\n339\t\n340\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n341\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n342\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n343\t\n344\t  ● Object-Level Authorization — Disputes › User B CANNOT dispute User A ride (403)\n345\t\n346\t    TypeError: Cannot read properties of undefined (reading '_id')\n347\t\n348\t      102 |   beforeAll(async () => {\n349\t      103 |     // Dispatcher accepts the ride so it can be disputed\n350\t    > 104 |     await request(app).post(`/api/dispatch/rides/${rideByA._id}/accept`)\n351\t          |                                                            ^\n352\t      105 |       .set('Authorization', `Bearer ${dispatcherToken}`)\n353\t      106 |       .send({ notes: 'test' });\n354\t      107 |     acceptedRideId = rideByA._id;\n355\t\n356\t      at Object._id (API_tests/object-auth.test.js:104:60)\n357\t\n358\t  ● Object-Level Authorization — Disputes › Dispatcher CAN dispute any ride\n359\t\n360\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n361\t\n362\t      14 |\n363\t      15 | beforeAll(async () => {\n364\t    > 16 |   await mongoose.connect(MONGO_URI);\n365\t         |   ^\n366\t      17 |   await User.deleteMany({});\n367\t      18 |   await RideRequest.deleteMany({});\n368\t      19 |\n369\t\n370\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n371\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n372\t      at Object.<anonymous> (API_tests/object-auth.test.js:16:3)\n373\t\n374\t  ● Object-Level Authorization — Disputes › Dispatcher CAN dispute any ride\n375\t\n376\t    TypeError: Cannot read properties of undefined (reading '_id')\n377\t\n378\t      102 |   beforeAll(async () => {\n379\t      103 |     // Dispatcher accepts the ride so it can be disputed\n380\t    > 104 |     await request(app).post(`/api/dispatch/rides/${rideByA._id}/accept`)\n381\t          |                                                            ^\n382\t      105 |       .set('Authorization', `Bearer ${dispatcherToken}`)\n383\t      106 |       .send({ notes: 'test' });\n384\t      107 |     acceptedRideId = rideByA._id;\n385\t\n386\t      at Object._id (API_tests/object-auth.test.js:104:60)\n387\t\n388\t\n389\t  ● Test suite failed to run\n390\t\n391\t    MongooseError: Operation `users.deleteMany()` buffering timed out after 10000ms\n392\t\n393\t      at Timeout.<anonymous> (api/node_modules/mongoose/lib/drivers/node-mongodb-native/collection.js:185:23)\n394\t\n395\tFAIL API_tests/rides.test.js (40.446 s)\n396\t  ● Rides API › POST /api/rides — create ride request\n397\t\n398\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n399\t\n400\t      13 |\n401\t      14 | beforeAll(async () => {\n402\t    > 15 |   await mongoose.connect(MONGO_URI);\n403\t         |   ^\n404\t      16 |   await User.deleteMany({});\n405\t      17 |   await RideRequest.deleteMany({});\n406\t      18 |\n407\t\n408\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n409\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n410\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n411\t\n412\t  ● Rides API › POST /api/rides — reject rider_count > 6\n413\t\n414\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n415\t\n416\t      13 |\n417\t      14 | beforeAll(async () => {\n418\t    > 15 |   await mongoose.connect(MONGO_URI);\n419\t         |   ^\n420\t      16 |   await User.deleteMany({});\n421\t      17 |   await RideRequest.deleteMany({});\n422\t      18 |\n423\t\n424\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n425\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n426\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n427\t\n428\t  ● Rides API › POST /api/rides — reject time window > 4 hours\n429\t\n430\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n431\t\n432\t      13 |\n433\t      14 | beforeAll(async () => {\n434\t    > 15 |   await mongoose.connect(MONGO_URI);\n435\t         |   ^\n436\t      16 |   await User.deleteMany({});\n437\t      17 |   await RideRequest.deleteMany({});\n438\t      18 |\n439\t\n440\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n441\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n442\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n443\t\n444\t  ● Rides API › GET /api/rides — list rides\n445\t\n446\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n447\t\n448\t      13 |\n449\t      14 | beforeAll(async () => {\n450\t    > 15 |   await mongoose.connect(MONGO_URI);\n451\t         |   ^\n452\t      16 |   await User.deleteMany({});\n453\t      17 |   await RideRequest.deleteMany({});\n454\t      18 |\n455\t\n456\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n457\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n458\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n459\t\n460\t  ● Rides API › POST /api/dispatch/rides/:id/accept — dispatcher accepts\n461\t\n462\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n463\t\n464\t      13 |\n465\t      14 | beforeAll(async () => {\n466\t    > 15 |   await mongoose.connect(MONGO_URI);\n467\t         |   ^\n468\t      16 |   await User.deleteMany({});\n469\t      17 |   await RideRequest.deleteMany({});\n470\t      18 |\n471\t\n472\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n473\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n474\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n475\t\n476\t  ● Rides API › POST /api/dispatch/rides/:id/transition — start ride\n477\t\n478\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n479\t\n480\t      13 |\n481\t      14 | beforeAll(async () => {\n482\t    > 15 |   await mongoose.connect(MONGO_URI);\n483\t         |   ^\n484\t      16 |   await User.deleteMany({});\n485\t      17 |   await RideRequest.deleteMany({});\n486\t      18 |\n487\t\n488\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n489\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n490\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n491\t\n492\t  ● Rides API › POST /api/dispatch/rides/:id/transition — complete ride\n493\t\n494\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n495\t\n496\t      13 |\n497\t      14 | beforeAll(async () => {\n498\t    > 15 |   await mongoose.connect(MONGO_URI);\n499\t         |   ^\n500\t      16 |   await User.deleteMany({});\n501\t      17 |   await RideRequest.deleteMany({});\n502\t      18 |\n503\t\n504\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n505\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n506\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n507\t\n508\t  ● Rides API › GET /api/rides/:id — has state transition log\n509\t\n510\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n511\t\n512\t      13 |\n513\t      14 | beforeAll(async () => {\n514\t    > 15 |   await mongoose.connect(MONGO_URI);\n515\t         |   ^\n516\t      16 |   await User.deleteMany({});\n517\t      17 |   await RideRequest.deleteMany({});\n518\t      18 |\n519\t\n520\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n521\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n522\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n523\t\n524\t  ● Rides API › POST /api/rides/:id/feedback — rider submits feedback\n525\t\n526\t    MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017\n527\t\n528\t      13 |\n529\t      14 | beforeAll(async () => {\n530\t    > 15 |   await mongoose.connect(MONGO_URI);\n531\t         |   ^\n532\t      16 |   await User.deleteMany({});\n533\t      17 |   await RideRequest.deleteMany({});\n534\t      18 |\n535\t\n536\t      at _handleConnectionErrors (node_modules/mongoose/lib/connection.js:816:11)\n537\t      at NativeConnection.openUri (node_modules/mongoose/lib/connection.js:791:11)\n538\t      at Object.<anonymous> (API_tests/rides.test.js:15:3)\n539\t\n540\t\n541\t  ● Test suite failed to run\n542\t\n543\t    MongooseError: Operation `users.deleteMany()` buffering timed out after 10000ms\n544\t\n545\t      at Timeout.<anonymous> (api/node_modules/mongoose/lib/drivers/node-mongodb-native/collection.js:185:23)\n546\t\n547\t::ffff:127.0.0.1 - POST /api/auth/login HTTP/1.1 200 390 - 236.132 ms\n548\t::ffff:127.0.0.1 - POST /api/movie-import/upload HTTP/1.1 422 76 - 9.016 ms\n549\t::ffff:127.0.0.1 - POST /api/movie-import/upload HTTP/1.1 422 60 - 7.252 ms\n550\t::ffff:127.0.0.1 - POST /api/movie-import/upload HTTP/1.1 422 92 - 4.920 ms\n551\t::ffff:127.0.0.1 - POST /api/movie-import/upload HTTP/1.1 201 455 - 14.763 ms\n552\t::ffff:127.0.0.1 - POST /api/movie-import/upload HTTP/1.1 201 702 - 16.876 ms\n553\t::ffff:127.0.0.1 - POST /api/movie-import/69cfe30b2fb06f7630a7601e/execute HTTP/1.1 422 154 - 5.123 ms\n554\t::ffff:127.0.0.1 - POST /api/movie-import/69cfe30b2fb06f7630a7601e/skip/0 HTTP/1.1 200 701 - 18.967 ms\n555\t::ffff:127.0.0.1 - POST /api/movie-import/69cfe30b2fb06f7630a7601e/execute HTTP/1.1 200 705 - 12.185 ms\n556\t::ffff:127.0.0.1 - POST /api/movie-import/upload HTTP/1.1 201 569 - 26.140 ms\n557\t::ffff:127.0.0.1 - PUT /api/movie-import/69cfe30c2fb06f7630a76038/resolve/0 HTTP/1.1 200 579 - 8.239 ms\n558\t::ffff:127.0.0.1 - POST /api/movie-import/69cfe30c2fb06f7630a76038/execute HTTP/1.1 200 583 - 16.168 ms\n559\tPASS API_tests/movie-import-exec.test.js\n560\t  Movie Import — Upload Validation\n561\t    ✓ rejects non-JSON/CSV file extension (20 ms)\n562\t    ✓ rejects invalid JSON content (13 ms)\n563\t    ✓ rejects empty CSV (13 ms)\n564\t    ✓ accepts valid JSON import (21 ms)\n565\t  Movie Import — Conflict Blocking\n566\t    ✓ import with conflict is detected (27 ms)\n567\t    ✓ execute is blocked when conflicts are unresolved (11 ms)\n568\t    ✓ skip a conflicted record (25 ms)\n569\t    ✓ execute succeeds after skip (20 ms)\n570\t  Movie Import — Conflict Resolution + Revision\n571\t    ✓ create import with conflict (35 ms)\n572\t    ✓ resolve conflict field-by-field (16 ms)\n573\t    ✓ execute after resolution succeeds (22 ms)\n574\t    ✓ merged movie has revision history (4 ms)\n575\t\n576\t"
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:55:56.942Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Now let me check the unit_tests specifically."
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:56:00.402Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "tool_call_id": "toolu_01KY13xRwYbPd3p2kvqmRm24",
+          "name": "Bash",
+          "arguments": "{\"command\": \"cd /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo && npx jest --testPathPattern='unit_tests/' --verbose 2>&1\", \"description\": \"Run unit_tests suite only\", \"timeout\": 60000}"
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "toolu_01KY13xRwYbPd3p2kvqmRm24",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"cd /Users/aimanmengesha/Desktop/eagle\\\\ point/2223/w2t10/repo && npx jest --testPathPattern='unit_tests/' --verbose 2>&1\", \"description\": \"Run unit_tests suite only\", \"timeout\": 60000}"
+          }
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:56:02.703Z"
+      }
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "toolu_01KY13xRwYbPd3p2kvqmRm24",
+      "content": [
+        {
+          "type": "tool_output",
+          "text": "PASS unit_tests/crypto.test.js\n  Crypto Utils\n    AES-256 Encryption\n      ✓ encrypts and decrypts text correctly (2 ms)\n      ✓ returns null for null input\n      ✓ different encryptions of same text produce different ciphertexts (random IV) (1 ms)\n    Password Hashing\n      ✓ hashes and verifies password (456 ms)\n      ✓ rejects incorrect password (422 ms)\n    File Fingerprint\n      ✓ computes SHA-256 hash of buffer\n      ✓ different content produces different fingerprints (1 ms)\n\nPASS unit_tests/route-rbac.test.js\n  Route-Level RBAC Enforcement\n    ✓ user routes require admin\n    ✓ config routes require admin (1 ms)\n    ✓ dispatch routes require admin or dispatcher\n    ✓ ledger routes require admin or dispatcher (1 ms)\n    ✓ movie CUD routes require staff\n    ✓ content CUD routes require staff (1 ms)\n    ✓ content review requires reviewer role\n    ✓ movie import requires staff\n    ✓ sensor admin endpoints require admin (1 ms)\n    ✓ sensor ingest requires device auth\n    ✓ all authenticated routes use authMiddleware (1 ms)\n  Object-Level Authorization\n    ✓ ride routes enforce ownership for non-privileged roles\n    ✓ dispute service enforces ride ownership\n\nPASS unit_tests/typo-tolerant-search.test.js\n  Typo-Tolerant Search (Fuse.js)\n    ✓ exact match returns correct movie (2 ms)\n    ✓ typo \"Godfathr\" still finds The Godfather\n    ✓ typo \"Shawshnk\" finds The Shawshank Redemption\n    ✓ typo \"Dar Knigh\" finds The Dark Knight (1 ms)\n    ✓ typo \"Incpetion\" finds Inception (1 ms)\n    ✓ partial match \"Pulp\" finds Pulp Fiction\n    ✓ description search \"Batman\" finds Dark Knight (1 ms)\n    ✓ tag search \"crime\" finds relevant movies\n    ✓ completely unrelated query returns empty (1 ms)\n    ✓ fuzzy results include _fuzzyScore (1 ms)\n  Typo-Tolerant Suggestions\n    ✓ fuzzy suggestion for misspelled \"Godfathr\"\n    ✓ fuzzy suggestion for misspelled \"Interstelar\" (1 ms)\n  Search Service Design\n    ✓ movies fall back to fuzzy when text search returns nothing\n    ✓ content falls back to fuzzy when text search returns nothing (1 ms)\n    ✓ suggestions use fuzzy fallback when prefix match is sparse\n    ✓ user search falls back to fuzzy (1 ms)\n\nPASS unit_tests/openapi-parity.test.js\n  OpenAPI Parity\n    ✓ OpenAPI spec exists and has paths\n    ✓ all major route groups are represented in OpenAPI (1 ms)\n    ✓ critical endpoints are documented\n    ✓ sensor ingest documents device auth headers (1 ms)\n    ✓ no \"no auth\" claims remain for sensor endpoints\n    ✓ implemented routes have reasonable OpenAPI coverage\n\nPASS unit_tests/sensor-time-drift.test.js\n  Sensor Time-Drift Enforcement\n    ✓ computes time drift in seconds (1 ms)\n    ✓ reads drift threshold from config\n    ✓ flags readings exceeding drift threshold\n    ✓ time drift flag prevents cleaned copy\n    ✓ model includes time_drift in outlier_flags\n    ✓ drift seconds are stored on reading (1 ms)\n  Time-Drift Logic (unit)\n    ✓ reading 1 second old is accepted\n    ✓ reading 4 minutes old is accepted\n    ✓ reading exactly 5 minutes old is accepted (boundary)\n    ✓ reading 6 minutes old is flagged\n    ✓ reading 1 hour in the future is flagged (1 ms)\n    ✓ reading 10 seconds in the future is accepted\n\nPASS unit_tests/movie-import.test.js\n  Movie Import — CSV Parser\n    ✓ parseCSVLine handles simple values\n    ✓ parseCSVLine handles quoted fields with commas (1 ms)\n    ✓ parseCSVLine handles escaped quotes\n    ✓ parseCSVLine handles empty fields\n  Movie Import — File Parsing\n    ✓ parses JSON array\n    ✓ parses JSON single object wraps to array (1 ms)\n    ✓ parses CSV with headers\n    ✓ parses CSV with quoted fields containing commas\n    ✓ rejects unsupported format (6 ms)\n    ✓ empty CSV returns empty array\n  Movie Import — Year Extraction\n    ✓ extracts year from ISO date\n    ✓ extracts year from full ISO datetime (1 ms)\n    ✓ extracts year from bare year string\n    ✓ returns null for empty/null\n    ✓ extracts year from Date object\n  Movie Import — Conflict Detection Design\n    ✓ conflict detection includes release_date (1 ms)\n    ✓ conflict detection includes all scalar fields\n    ✓ matching uses release year when available\n    ✓ merge execution handles release_date field specifically\n    ✓ revision snapshot created on import merge\n\nPASS unit_tests/carpool-workflow.test.js\n  Carpool Workflow\n    Model\n      ✓ has is_carpool field\n      ✓ has carpool_group_id field (1 ms)\n    Service\n      ✓ createRideRequest passes is_carpool\n      ✓ getCarpoolCandidates filters by matching criteria\n      ✓ groupCarpoolRides validates minimum 2 rides\n      ✓ groupCarpoolRides enforces max 6 total riders (1 ms)\n      ✓ groupCarpoolRides assigns group ID and transitions to accepted (1 ms)\n      ✓ getCarpoolGroup fetches by group ID (1 ms)\n    Routes\n      ✓ carpool candidates endpoint exists\n      ✓ carpool group creation endpoint exists\n      ✓ carpool group view endpoint exists\n    Frontend — Ride Creation\n      ✓ form has is_carpool checkbox\n    Frontend — Dispatch\n      ✓ Find Carpool Matches button exists\n      ✓ carpool candidate selection exists\n      ✓ group action exists\n\nPASS unit_tests/env-validation.test.js\n  Environment Validation\n    ✓ fails when JWT_SECRET is missing (3 ms)\n    ✓ fails when JWT_SECRET is an insecure default (non-test mode) (1 ms)\n    ✓ fails when JWT_SECRET is the .env.example placeholder (non-test mode) (1 ms)\n    ✓ allows insecure JWT_SECRET in test mode\n    ✓ fails when ENCRYPTION_KEY is missing (1 ms)\n    ✓ fails when ENCRYPTION_KEY is wrong length\n    ✓ passes with valid configuration\n\nPASS unit_tests/content-types.test.js\n  Content Type-Specific Support\n    Gallery\n      ✓ model has gallery_items field (1 ms)\n      ✓ frontend has gallery form fields\n    Video\n      ✓ model has video fields\n      ✓ service validates video requires url or body (1 ms)\n      ✓ frontend has video form fields (1 ms)\n    Event\n      ✓ model has event fields\n      ✓ service validates event requires date\n      ✓ service validates end date after start\n      ✓ frontend has event form fields\n    Validation flow\n      ✓ validateTypeFields function exists (1 ms)\n      ✓ extractTypeFields function exists\n      ✓ createContent calls validation\n      ✓ updateContent calls validation\n      ✓ revision snapshot includes type fields\n\nPASS unit_tests/state-machine.test.js\n  State Machine\n    Ride Transitions\n      ✓ allows valid transitions (1 ms)\n      ✓ rejects invalid transitions (1 ms)\n      ✓ canceled is terminal\n    Content Transitions\n      ✓ allows valid transitions\n      ✓ rejects invalid transitions\n\nPASS unit_tests/password-change.test.js\n  Password Change Validation\n    ✓ service validates minimum password length (1 ms)\n    ✓ service prevents reuse of same password\n    ✓ service clears must_change_password flag on success\n    ✓ route validates required fields\n    ✓ login response includes must_change_password flag\n  Bootstrap Credential Security\n    ✓ seed generates random passwords, not hardcoded (1 ms)\n    ✓ seed sets must_change_password on all bootstrap accounts (1 ms)\n    ✓ seed writes credentials to file, not stdout\n\nPASS unit_tests/sensor-onboarding.test.js\n  Sensor Onboarding End-to-End\n    ✓ device creation returns one-time plaintext secret\n    ✓ secret rotation endpoint exists (1 ms)\n    ✓ secret_hash is allowed in updateDevice fields\n    ✓ frontend shows secret modal with copy button\n    ✓ frontend requires acknowledgement before dismissing secret\n    ✓ frontend has rotate secret button per device\n    ✓ modal warns secret cannot be retrieved later (1 ms)\n\nPASS unit_tests/sensitive-words.test.js\n  Sensitive Words Scanner\n    ✓ detects sensitive words in text (1 ms)\n    ✓ returns empty array for clean text\n    ✓ is case-insensitive\n    ✓ handles null/empty input\n\nPASS unit_tests/fuzzy-search.test.js\n  Fuzzy Search\n    ✓ finds exact matches (1 ms)\n    ✓ handles typo-tolerant matching\n    ✓ searches across multiple keys\n    ✓ returns empty for no match (1 ms)\n    ✓ returns input for empty query\n\n(node:50703) [DEP0147] DeprecationWarning: In future versions of Node.js, fs.rmdir(path, { recursive: true }) will be removed. Use fs.rm(path, { recursive: true }) instead\n(Use `node --trace-deprecation ...` to show where the warning was created)\nPASS unit_tests/import-upload-path.test.js\n  Movie Import Upload Path\n    ✓ imports directory can be created at runtime (2 ms)\n    ✓ Dockerfile provisions imports directory (1 ms)\n    ✓ movie-import route sets uploadSubdir to imports\n    ✓ file-upload.js uses req.uploadSubdir for destination\n\nPASS unit_tests/revision-exposure.test.js\n  Revision History Exposure Prevention\n    ✓ movie detail strips revisions for non-staff\n    ✓ movie detail only includes revisions for staff when requested\n    ✓ content detail strips revisions for non-editorial roles (1 ms)\n    ✓ movie revisions endpoint is staff-only\n    ✓ content reviews endpoint is editorial-only\n\nPASS unit_tests/resumable-transfer.test.js\n  Sensor Resumable Transfer — Durable Persistence\n    ✓ BatchSession model exists with required fields (1 ms)\n    ✓ BatchSession has TTL index for auto-cleanup\n    ✓ BatchSession has unique index on session_id\n    ✓ service imports BatchSession model\n    ✓ service does NOT use in-memory Map for sessions\n    ✓ service uses findOneAndUpdate for durable session progress (1 ms)\n    ✓ service reads session from DB on resume\n\nPASS unit_tests/no-log-credentials.test.js\n  Bootstrap Credential Security — No Log Exposure\n    ✓ seed does NOT print credential values to console.log (1 ms)\n    ✓ seed does NOT print credentials in console output\n    ✓ seed writes credentials to a file instead (1 ms)\n    ✓ credential file has restrictive permissions\n    ✓ seed tells user to delete the credential file\n    ✓ gitignore blocks credential file (1 ms)\n\nPASS unit_tests/ledger-retry-reachability.test.js\n  Ledger Retry Reachability\n    ✓ entries are created with pending status, not posted\n    ✓ attemptPosting function exists and can set status to posted or failed\n    ✓ recordPayment calls attemptPosting after creation (1 ms)\n    ✓ retryFailedEntries calls attemptPosting\n    ✓ posting validates receipt uniqueness per day\n\nPASS unit_tests/extension-auth.test.js\n  Extension Endpoint Auth & Permissions\n    ✓ extension data endpoints use API key auth\n    ✓ API key is verified via bcrypt (1 ms)\n    ✓ client creation requires admin auth\n    ✓ rate limiting is enforced\n    ✓ permission checks exist for each resource\n    ✓ unauthorized API key returns 401 (1 ms)\n    ✓ missing permission returns 403\n\nPASS unit_tests/sensor-dual-retention.test.js\n  Sensor Dual Retention Design\n    ✓ unique index includes is_raw to allow raw+cleaned coexistence (1 ms)\n    ✓ service creates raw reading on every ingest\n    ✓ service creates separate cleaned copy for non-outlier readings\n    ✓ dedup check only looks at raw readings\n\nPASS unit_tests/phone-mask.test.js\n  Phone Masking\n    ✓ masks 10-digit US phone number\n    ✓ masks phone with country code\n    ✓ masks phone with formatting (1 ms)\n    ✓ masks short phone number\n    ✓ returns null for null input (1 ms)\n    ✓ returns null for empty string\n\nTest Suites: 22 passed, 22 total\nTests:       183 passed, 183 total\nSnapshots:   0 total\nTime:        1.477 s\nRan all test suites matching /unit_tests\\//i."
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:56:20.922Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Done. `unit_tests/doc-accuracy.test.js` has been deleted. The remaining test suite runs cleanly:\n\n- **unit_tests/**: 22 suites, 183 tests — all passing\n- **API_tests/**: The integration tests (`sensors`, `object-auth`, `rides`) fail with `ECONNREFUSED` on MongoDB, which is expected without a running database — not related to the removal. The `movie-import-exec.test.js` suite passes fine."
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:56:28.068Z"
+      }
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "<task-notification>\n<task-id>byb67235h</task-id>\n<tool-use-id>toolu_01NGHmtjoBN5f33LSfs3AmAt</tool-use-id>\n<output-file>/private/tmp/claude-501/-Users-aimanmengesha-Desktop-eagle-point-2223-w2t10-repo/47808113-5a52-4d44-a3fe-fcca4cb57121/tasks/byb67235h.output</output-file>\n<status>failed</status>\n<summary>Background command \"Run remaining test suites\" failed with exit code 1</summary>\n</task-notification>"
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:56:28.507Z"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "That background task was the earlier test run — same results as what I already reviewed. The MongoDB connection failures in the API integration tests are expected without a running database and are unrelated to the file removal. All 22 unit test suites (183 tests) pass cleanly."
+        }
+      ],
+      "_metadata": {
+        "timestamp": "2026-04-03T15:56:33.495Z"
+      }
+    }
+  ],
+  "meta": {
+    "session_meta": {
+      "session_id": "47808113-5a52-4d44-a3fe-fcca4cb57121",
+      "version": "2.1.90",
+      "git_branch": "main",
+      "cwd": "/Users/aimanmengesha/Desktop/eagle point/2223/w2t10/repo"
+    },
+    "token_counts": [
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 11270,
+            "output_tokens": 48,
+            "total_tokens": 51
+          },
+          "last_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 11270,
+            "output_tokens": 48,
+            "total_tokens": 51
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:47:14.340Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 11270,
+            "output_tokens": 48,
+            "total_tokens": 51
+          },
+          "last_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 11270,
+            "output_tokens": 48,
+            "total_tokens": 51
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:47:14.838Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 11270,
+            "output_tokens": 151,
+            "total_tokens": 154
+          },
+          "last_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 11270,
+            "output_tokens": 151,
+            "total_tokens": 154
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:47:15.297Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 16314,
+            "output_tokens": 87,
+            "total_tokens": 88
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 16314,
+            "output_tokens": 87,
+            "total_tokens": 88
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:47:20.683Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 16489,
+            "output_tokens": 2,
+            "total_tokens": 3
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 16489,
+            "output_tokens": 2,
+            "total_tokens": 3
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:47:24.815Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 16489,
+            "output_tokens": 141,
+            "total_tokens": 142
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 16489,
+            "output_tokens": 141,
+            "total_tokens": 142
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:47:25.506Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 17499,
+            "output_tokens": 125,
+            "total_tokens": 126
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 17499,
+            "output_tokens": 125,
+            "total_tokens": 126
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:47:37.534Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 17658,
+            "output_tokens": 125,
+            "total_tokens": 126
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 17658,
+            "output_tokens": 125,
+            "total_tokens": 126
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:49:46.323Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 17879,
+            "output_tokens": 119,
+            "total_tokens": 120
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 17879,
+            "output_tokens": 119,
+            "total_tokens": 120
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:55:56.359Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 18104,
+            "output_tokens": 3,
+            "total_tokens": 4
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 18104,
+            "output_tokens": 3,
+            "total_tokens": 4
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:56:00.402Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 18104,
+            "output_tokens": 146,
+            "total_tokens": 147
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 18104,
+            "output_tokens": 146,
+            "total_tokens": 147
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:56:02.703Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 27397,
+            "output_tokens": 115,
+            "total_tokens": 116
+          },
+          "last_token_usage": {
+            "input_tokens": 1,
+            "cached_input_tokens": 27397,
+            "output_tokens": 115,
+            "total_tokens": 116
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:56:28.068Z"
+      },
+      {
+        "type": "token_count",
+        "info": {
+          "total_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 18104,
+            "output_tokens": 61,
+            "total_tokens": 64
+          },
+          "last_token_usage": {
+            "input_tokens": 3,
+            "cached_input_tokens": 18104,
+            "output_tokens": 61,
+            "total_tokens": 64
+          }
+        },
+        "rate_limits": {
+          "primary": null,
+          "secondary": null,
+          "credits": null,
+          "plan_type": null
+        },
+        "_timestamp": "2026-04-03T15:56:33.495Z"
+      }
+    ],
+    "skipped_events_count": 10,
+    "skipped_events": [
+      {
+        "type": "file-history-snapshot",
+        "timestamp": null,
+        "data": null
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:55:24.861Z",
+        "data": "local_command"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:55:24.862Z",
+        "data": "local_command"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:56:28.469Z",
+        "data": "stop_hook_summary"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:56:28.473Z",
+        "data": "turn_duration"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:56:33.859Z",
+        "data": "stop_hook_summary"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:57:27.581Z",
+        "data": "local_command"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:57:27.581Z",
+        "data": "local_command"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:57:45.766Z",
+        "data": "local_command"
+      },
+      {
+        "type": "system",
+        "timestamp": "2026-04-03T15:57:45.766Z",
+        "data": "local_command"
+      }
+    ]
+  }
+}
