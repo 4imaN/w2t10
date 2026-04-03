@@ -102,7 +102,9 @@ router.post('/devices', adminOnly, async (req, res, next) => {
     const secretHash = await bcrypt.hash(rawSecret, 10);
     const device = await sensorService.createDevice({ ...req.body, secret_hash: secretHash });
     // Return plaintext secret only once — it's not stored
-    res.status(201).json({ device, device_secret: rawSecret });
+    const deviceObj = device.toObject();
+    delete deviceObj.secret_hash;
+    res.status(201).json({ device: deviceObj, device_secret: rawSecret });
   } catch (err) { next(err); }
 });
 

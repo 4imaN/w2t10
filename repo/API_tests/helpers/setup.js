@@ -10,9 +10,13 @@ async function startTestDb() {
   const mongoose = require('mongoose');
   await mongoose.connect(uri);
 
-  const apiMongoose = require('../../api/node_modules/mongoose');
-  if (apiMongoose !== mongoose && apiMongoose.connection.readyState === 0) {
-    await apiMongoose.connect(uri);
+  try {
+    const apiMongoose = require('../../api/node_modules/mongoose');
+    if (apiMongoose !== mongoose && apiMongoose.connection.readyState === 0) {
+      await apiMongoose.connect(uri);
+    }
+  } catch {
+    // api shares the same mongoose instance — no separate connection needed
   }
 
   return uri;
