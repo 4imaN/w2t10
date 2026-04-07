@@ -1,13 +1,14 @@
-const { cleanupExpiredReadings } = require('../services/sensor.service');
+const sensorService = require('../services/sensor.service');
+const { logger } = require('../utils/logger');
 
 async function runSensorCleanup() {
   try {
-    const count = await cleanupExpiredReadings();
+    const count = await sensorService.cleanupExpiredReadings();
     if (count > 0) {
-      console.log(`[Sensor-Cleanup] Removed ${count} expired readings`);
+      logger.info('sensor-cleanup completed', { job: 'sensor-cleanup', removed: count });
     }
   } catch (err) {
-    console.error('[Sensor-Cleanup] Error:', err.message);
+    logger.error('sensor-cleanup failed', { job: 'sensor-cleanup', error: err.message });
   }
 }
 

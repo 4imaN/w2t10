@@ -3,10 +3,28 @@ dist/
 .env.local
 uploads/posters/*
 uploads/stills/*
+uploads/imports/*
 !uploads/posters/.gitkeep
 !uploads/stills/.gitkeep
+!uploads/imports/.gitkeep
 *.log
 .DS_Store
 coverage/
 .env
 .bootstrap-credentials
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Env files (if present at repo root)
+.env
+.env.*
+

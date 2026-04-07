@@ -5,7 +5,7 @@ const mediaRefSchema = new mongoose.Schema({
   original_name: String,
   mimetype: String,
   size: Number,
-  fingerprint: String, // SHA-256 hash of file content
+  fingerprint: String,
   path: String
 }, { _id: false });
 
@@ -72,6 +72,30 @@ const movieSchema = new mongoose.Schema({
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+movieSchema.pre('save', function(next) {
+  if (!this.isNew && this.isModified('revisions')) {
+    const original = this._original_revisions_count;
+    if (original !== undefined && this.revisions.length < original) {
+      return next(new Error('IMMUTABLE_LOG: Cannot remove revision entries'));
+    }
+  }
+  next();
+});
+
+movieSchema.post('init', function(doc) {
+  doc._original_revisions_count = doc.revisions ? doc.revisions.length : 0;
+});
+
+movieSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate'], function(next) {
+  const update = this.getUpdate();
+  const updateStr = JSON.stringify(update);
+  if (updateStr.includes('$pull') && updateStr.includes('revisions') ||
+      updateStr.includes('$set') && updateStr.includes('revisions') && !updateStr.includes('$push')) {
+    return next(new Error('IMMUTABLE_LOG: Cannot modify or remove revision entries'));
+  }
+  next();
 });
 
 movieSchema.index({ title: 'text', description: 'text', tags: 'text' });

@@ -33,17 +33,14 @@ const contentItemSchema = new mongoose.Schema({
     size: Number,
     path: String
   }],
-  // Gallery-specific: ordered list of media items with captions
   gallery_items: [{
     media_url: { type: String },
     caption: { type: String, default: '' },
     sort_order: { type: Number, default: 0 }
   }],
-  // Video-specific
   video_url: { type: String, default: null },
   video_duration_seconds: { type: Number, default: null },
   video_format: { type: String, default: null },
-  // Event-specific
   event_date: { type: Date, default: null },
   event_end_date: { type: Date, default: null },
   event_location: { type: String, default: null },
@@ -76,6 +73,30 @@ const contentItemSchema = new mongoose.Schema({
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+contentItemSchema.pre('save', function(next) {
+  if (!this.isNew && this.isModified('revisions')) {
+    const original = this._original_revisions_count;
+    if (original !== undefined && this.revisions.length < original) {
+      return next(new Error('IMMUTABLE_LOG: Cannot remove revision entries'));
+    }
+  }
+  next();
+});
+
+contentItemSchema.post('init', function(doc) {
+  doc._original_revisions_count = doc.revisions ? doc.revisions.length : 0;
+});
+
+contentItemSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate'], function(next) {
+  const update = this.getUpdate();
+  const updateStr = JSON.stringify(update);
+  if (updateStr.includes('$pull') && updateStr.includes('revisions') ||
+      updateStr.includes('$set') && updateStr.includes('revisions') && !updateStr.includes('$push')) {
+    return next(new Error('IMMUTABLE_LOG: Cannot modify or remove revision entries'));
+  }
+  next();
 });
 
 contentItemSchema.index({ title: 'text', body: 'text' });

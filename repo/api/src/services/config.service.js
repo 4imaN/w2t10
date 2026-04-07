@@ -1,9 +1,8 @@
 const ConfigDictionary = require('../models/ConfigDictionary');
 
-// In-memory cache with TTL
 let cache = {};
 let cacheTimestamp = 0;
-const CACHE_TTL = 60000; // 60 seconds default
+const CACHE_TTL = 60000;
 
 async function refreshCache() {
   const configs = await ConfigDictionary.find({});
@@ -28,17 +27,44 @@ async function getAllConfigs(category = null) {
 }
 
 async function setConfig(key, value, category, description) {
-  const config = await ConfigDictionary.findOneAndUpdate(
-    { key },
-    { key, value, category, description },
-    { upsert: true, new: true }
-  );
-  // Invalidate cache
+  const existing = await ConfigDictionary.findOne({ key });
+
+  if (existing) {
+    existing.value = value;
+    if (category !== undefined && category !== null) existing.category = category;
+    if (description !== undefined) existing.description = description;
+    await existing.save();
+    cache[key] = value;
+    return existing;
+  }
+
+  if (!category) {
+    const { ValidationError } = require('../utils/errors');
+    throw new ValidationError('Category is required when creating a new config entry');
+  }
+
+  const config = await ConfigDictionary.create({ key, value, category, description });
   cache[key] = value;
   return config;
 }
 
+const PROTECTED_KEYS = [
+  'auto_cancel_minutes',
+  'free_cancel_window_minutes',
+  'min_ride_advance_minutes',
+  'dispute_escalation_hours',
+  'max_ride_payment_amount',
+  'time_drift_threshold_seconds',
+  'sensor_retention_days',
+  'ledger_max_retries',
+  'featured_tags',
+];
+
 async function deleteConfig(key) {
+  if (PROTECTED_KEYS.includes(key)) {
+    const { ValidationError } = require('../utils/errors');
+    throw new ValidationError(`Cannot delete protected config key '${key}'`);
+  }
   await ConfigDictionary.deleteOne({ key });
   delete cache[key];
 }

@@ -173,9 +173,7 @@ E2E_ADMIN_PASSWORD=<admin-bootstrap-password> npm test
 ## API Documentation
 
 - Interactive Swagger UI: `http://localhost:8080/api/docs`
-- Raw OpenAPI JSON: `GET /api/docs.json`
-- Full specification: see `docs/api-spec.md`
-
+- Raw OpenApi JSON :'GET /api/docs.json'
 ## Configuration
 
 Runtime configuration is managed through the Config Center (Admin → Config). Changes take effect within 60 seconds without server restart.
@@ -210,7 +208,6 @@ repo/
 │       └── App.jsx         # Root with routing
 ├── unit_tests/             # Unit tests (crypto, masking, state machine)
 ├── API_tests/              # Integration tests (auth, movies, rides, content, ledger, sensors)
-├── docs/                   # Design docs and API spec
 ├── docker-compose.yml      # 3-container orchestration
 ├── Dockerfile.api          # API container build
 ├── Dockerfile.frontend     # Frontend multi-stage build

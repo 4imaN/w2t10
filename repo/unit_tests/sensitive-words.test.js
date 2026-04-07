@@ -1,4 +1,3 @@
-// Mock the config module
 jest.mock('../api/src/models/ConfigDictionary', () => ({
   findOne: jest.fn().mockResolvedValue({
     value: ['violence', 'explicit', 'graphic', 'hate']

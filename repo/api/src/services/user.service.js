@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const { hashPassword, encrypt, decrypt } = require('../utils/crypto');
 const { maskPhone } = require('../utils/phone-mask');
-const { NotFoundError, ConflictError } = require('../utils/errors');
+const { NotFoundError, ConflictError, ValidationError } = require('../utils/errors');
 
 function sanitizeUser(user) {
   const obj = user.toObject ? user.toObject() : { ...user };
@@ -68,6 +68,9 @@ async function updateUser(id, updates) {
   if (!user) throw new NotFoundError('User');
 
   if (updates.password) {
+    if (updates.password.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters');
+    }
     user.password_hash = await hashPassword(updates.password);
   }
   if (updates.role) user.role = updates.role;

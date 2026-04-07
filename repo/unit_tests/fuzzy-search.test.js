@@ -17,7 +17,6 @@ describe('Fuzzy Search', () => {
 
   test('handles typo-tolerant matching', () => {
     const results = fuzzySearch(movies, 'Godfathr', ['title']);
-    // Should still find The Godfather with a typo
     expect(results.length).toBeGreaterThan(0);
   });
 

@@ -16,14 +16,12 @@ function validate(req, res, next) {
   next();
 }
 
-// Auth validations
 const loginValidation = [
   body('username').trim().notEmpty().withMessage('Username is required'),
   body('password').notEmpty().withMessage('Password is required'),
   validate
 ];
 
-// User validations
 const createUserValidation = [
   body('username').trim().isLength({ min: 3, max: 50 }).withMessage('Username must be 3-50 characters'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
@@ -33,7 +31,6 @@ const createUserValidation = [
   validate
 ];
 
-// Movie validations
 const createMovieValidation = [
   body('title').trim().notEmpty().isLength({ max: 300 }).withMessage('Title required, max 300 chars'),
   body('description').optional().isLength({ max: 5000 }),
@@ -44,7 +41,6 @@ const createMovieValidation = [
   validate
 ];
 
-// Content validations
 const createContentValidation = [
   body('content_type').isIn(['article', 'gallery', 'video', 'event']).withMessage('Invalid content type'),
   body('title').trim().notEmpty().isLength({ max: 300 }).withMessage('Title required, max 300 chars'),
@@ -53,7 +49,6 @@ const createContentValidation = [
   validate
 ];
 
-// Ride request validations
 const createRideValidation = [
   body('pickup_text').trim().notEmpty().isLength({ max: 500 }).withMessage('Pickup location required'),
   body('dropoff_text').trim().notEmpty().isLength({ max: 500 }).withMessage('Dropoff location required'),
@@ -65,7 +60,6 @@ const createRideValidation = [
   validate
 ];
 
-// Content review validations
 const reviewValidation = [
   body('decision').isIn(['approved', 'rejected']).withMessage('Decision must be approved or rejected'),
   body('rejection_reason')
@@ -74,7 +68,6 @@ const reviewValidation = [
   validate
 ];
 
-// Ledger entry validations
 const ledgerEntryValidation = [
   body('amount').isFloat({ min: 0 }).withMessage('Amount must be non-negative'),
   body('payment_method').isIn(['cash', 'card_on_file']).withMessage('Invalid payment method'),
@@ -84,7 +77,6 @@ const ledgerEntryValidation = [
   validate
 ];
 
-// Sensor ingest validations
 const sensorIngestValidation = [
   body('device_id').trim().notEmpty().withMessage('Device ID required'),
   body('timestamp').isISO8601().withMessage('Valid timestamp required'),
@@ -92,7 +84,6 @@ const sensorIngestValidation = [
   validate
 ];
 
-// Dispute validations
 const createDisputeValidation = [
   body('ride_request').isMongoId().withMessage('Valid ride request ID required'),
   body('reason').isIn(['no_show', 'wrong_route', 'fare_dispute', 'service_complaint', 'other']).withMessage('Invalid dispute reason'),
@@ -100,7 +91,6 @@ const createDisputeValidation = [
   validate
 ];
 
-// Config validations
 const configValidation = [
   body('key').trim().notEmpty().withMessage('Config key required'),
   body('value').exists().withMessage('Config value required'),
@@ -109,7 +99,6 @@ const configValidation = [
   validate
 ];
 
-// Pagination query validation
 const paginationValidation = [
   query('page').optional().isInt({ min: 1 }).toInt(),
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
@@ -118,6 +107,13 @@ const paginationValidation = [
 
 const mongoIdParam = [
   param('id').isMongoId().withMessage('Invalid ID format'),
+  validate
+];
+
+const configUpdateValidation = [
+  body('value').exists().withMessage('Config value required'),
+  body('category').optional().isIn(['statuses', 'tags', 'priority', 'thresholds', 'general', 'vehicle_types', 'ratings', 'sensitive_words']).withMessage('Invalid category'),
+  body('description').optional(),
   validate
 ];
 
@@ -133,6 +129,7 @@ module.exports = {
   sensorIngestValidation,
   createDisputeValidation,
   configValidation,
+  configUpdateValidation,
   paginationValidation,
   mongoIdParam
 };

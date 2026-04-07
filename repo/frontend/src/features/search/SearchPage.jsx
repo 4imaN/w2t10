@@ -5,6 +5,30 @@ import useAuthStore from '../../store/authStore';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { formatDate } from '../../utils/formatters';
 
+const SUGGEST_DEBOUNCE_MS = 250;
+
+const SORT_OPTIONS_BY_TYPE = {
+  '': [
+    { value: '', label: 'Relevance' },
+    { value: 'popularity', label: 'Popularity' },
+    { value: 'newest', label: 'Newest' },
+    { value: 'rating', label: 'Rating' },
+  ],
+  movie: [
+    { value: '', label: 'Relevance' },
+    { value: 'popularity', label: 'Popularity' },
+    { value: 'newest', label: 'Newest' },
+    { value: 'rating', label: 'Rating' },
+  ],
+  content: [
+    { value: '', label: 'Relevance' },
+    { value: 'newest', label: 'Newest' },
+  ],
+  user: [
+    { value: '', label: 'Relevance' },
+  ],
+};
+
 export default function SearchPage() {
   const { user } = useAuthStore();
   const canSearchUsers = ['administrator', 'dispatcher'].includes(user?.role);
@@ -16,7 +40,12 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Use refs to avoid stale closures when filters change
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const suggestRef = useRef(null);
+  const inputRef = useRef(null);
+
   const typeRef = useRef(type);
   const sortRef = useRef(sort);
   typeRef.current = type;
@@ -29,6 +58,68 @@ export default function SearchPage() {
       doSearch(q, typeRef.current, sortRef.current);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (suggestRef.current && !suggestRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const suggestTimer = useRef(null);
+
+  function fetchSuggestions(q) {
+    clearTimeout(suggestTimer.current);
+    if (!q || q.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/search/suggest?q=${encodeURIComponent(q.trim())}`);
+        setSuggestions(res.suggestions || []);
+        setShowSuggestions(true);
+        setSelectedIndex(-1);
+      } catch {
+        setSuggestions([]);
+      }
+    }, SUGGEST_DEBOUNCE_MS);
+  }
+
+  function handleInputChange(e) {
+    const val = e.target.value;
+    setQuery(val);
+    fetchSuggestions(val);
+  }
+
+  function handleKeyDown(e) {
+    if (!showSuggestions || suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(suggestions[selectedIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  }
+
+  function selectSuggestion(suggestion) {
+    const text = suggestion.text || suggestion;
+    setQuery(text);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setSearchParams({ q: text });
+    doSearch(text, type, sort);
+  }
 
   async function doSearch(q, searchType, searchSort) {
     if (!q || !q.trim()) return;
@@ -49,13 +140,18 @@ export default function SearchPage() {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    setShowSuggestions(false);
     setSearchParams({ q: query });
     doSearch(query, type, sort);
   };
 
   function handleTypeChange(newType) {
+    const allowed = SORT_OPTIONS_BY_TYPE[newType] || SORT_OPTIONS_BY_TYPE[''];
+    const sortStillValid = allowed.some(o => o.value === sort);
+    const effectiveSort = sortStillValid ? sort : '';
     setType(newType);
-    if (query) doSearch(query, newType, sort);
+    if (!sortStillValid) setSort('');
+    if (query) doSearch(query, newType, effectiveSort);
   }
 
   function handleSortChange(newSort) {
@@ -68,8 +164,48 @@ export default function SearchPage() {
       <h1 className="text-xl font-bold">Search</h1>
 
       <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
-        <input className="input flex-1" value={query} onChange={e => setQuery(e.target.value)}
-          placeholder="Search movies, content, users..." autoFocus />
+        <div className="relative flex-1" ref={suggestRef}>
+          <input
+            ref={inputRef}
+            className="input w-full"
+            value={query}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+            placeholder="Search movies, content, users..."
+            autoFocus
+            role="combobox"
+            aria-expanded={showSuggestions}
+            aria-autocomplete="list"
+            aria-controls="search-suggestions"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul
+              id="search-suggestions"
+              role="listbox"
+              className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+            >
+              {suggestions.map((s, i) => (
+                <li
+                  key={s._id || s.text || i}
+                  role="option"
+                  aria-selected={i === selectedIndex}
+                  className={`px-4 py-2 cursor-pointer text-sm ${
+                    i === selectedIndex
+                      ? 'bg-blue-100 dark:bg-blue-900'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  onMouseDown={() => selectSuggestion(s)}
+                >
+                  <span>{s.text}</span>
+                  {s.type && (
+                    <span className="ml-2 text-xs text-gray-400">{s.type}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <button type="submit" className="btn-primary w-full sm:w-auto">Search</button>
       </form>
 
@@ -81,11 +217,11 @@ export default function SearchPage() {
           </button>
         ))}
         <select className="input w-full sm:w-36 h-8 text-xs" value={sort}
-          onChange={e => handleSortChange(e.target.value)}>
-          <option value="">Relevance</option>
-          <option value="popularity">Popularity</option>
-          <option value="newest">Newest</option>
-          <option value="rating">Rating</option>
+          onChange={e => handleSortChange(e.target.value)}
+          data-testid="sort-select">
+          {(SORT_OPTIONS_BY_TYPE[type] || SORT_OPTIONS_BY_TYPE['']).map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
         </select>
       </div>
 
@@ -162,3 +298,5 @@ export default function SearchPage() {
     </div>
   );
 }
+
+export { SORT_OPTIONS_BY_TYPE };

@@ -1,34 +1,108 @@
-const fs = require('fs');
-const path = require('path');
+const request = require('supertest');
+const mongoose = require('mongoose');
 
-describe('Revision History Exposure Prevention', () => {
-  const movieRoutes = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'routes', 'movies.routes.js'), 'utf-8'
-  );
-  const contentRoutes = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'routes', 'content.routes.js'), 'utf-8'
-  );
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cineride_test';
 
-  test('movie detail strips revisions for non-staff', () => {
-    // Should delete revisions from response for non-staff
-    expect(movieRoutes).toContain('delete movieObj.revisions');
+let app;
+let editorToken, userToken;
+let movieId, contentId;
+
+beforeAll(async () => {
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-revision';
+  process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  process.env.NODE_ENV = 'test';
+  process.env.MONGO_URI = MONGO_URI;
+
+  await mongoose.connect(MONGO_URI);
+  app = require('../api/src/app');
+
+  const User = require('../api/src/models/User');
+  const { hashPassword } = require('../api/src/utils/crypto');
+
+  await User.deleteMany({ username: /^rev_/ });
+
+  await User.create({
+    username: 'rev_editor',
+    password_hash: await hashPassword('Test1234!'),
+    role: 'editor',
+    display_name: 'Rev Editor'
+  });
+  await User.create({
+    username: 'rev_user',
+    password_hash: await hashPassword('Test1234!'),
+    role: 'regular_user',
+    display_name: 'Rev User'
   });
 
-  test('movie detail only includes revisions for staff when requested', () => {
-    expect(movieRoutes).toContain("isStaffUser");
-    expect(movieRoutes).toContain("includeRevisions");
+  let res = await request(app).post('/api/auth/login')
+    .send({ username: 'rev_editor', password: 'Test1234!' });
+  editorToken = res.body.token;
+
+  res = await request(app).post('/api/auth/login')
+    .send({ username: 'rev_user', password: 'Test1234!' });
+  userToken = res.body.token;
+
+  res = await request(app).post('/api/movies')
+    .set('Authorization', `Bearer ${editorToken}`)
+    .send({ title: 'Revision Test Movie ' + Date.now(), description: 'test' });
+  movieId = res.body.movie._id;
+
+  res = await request(app).post('/api/content')
+    .set('Authorization', `Bearer ${editorToken}`)
+    .send({ title: 'Revision Test Content ' + Date.now(), body: 'test body', content_type: 'article' });
+  contentId = res.body.item._id;
+});
+
+afterAll(async () => {
+  const User = require('../api/src/models/User');
+  await User.deleteMany({ username: /^rev_/ });
+  await mongoose.disconnect();
+});
+
+describe('Revision History Exposure Prevention — Real Tests', () => {
+  test('staff user sees revisions when requested', async () => {
+    const res = await request(app).get(`/api/movies/${movieId}?revisions=true`)
+      .set('Authorization', `Bearer ${editorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.movie.revisions).toBeDefined();
   });
 
-  test('content detail strips revisions for non-editorial roles', () => {
-    expect(contentRoutes).toContain('delete itemObj.revisions');
+  test('regular user does NOT see revisions on movie detail', async () => {
+    const res = await request(app).get(`/api/movies/${movieId}`)
+      .set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.movie.revisions).toBeUndefined();
   });
 
-  test('movie revisions endpoint is staff-only', () => {
-    expect(movieRoutes).toContain("staffOnly");
-    expect(movieRoutes).toContain("/revisions");
+  test('staff can access movie revision history endpoint', async () => {
+    const res = await request(app).get(`/api/movies/${movieId}/revisions`)
+      .set('Authorization', `Bearer ${editorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.revisions).toBeDefined();
   });
 
-  test('content reviews endpoint is editorial-only', () => {
-    expect(contentRoutes).toContain("requireRole('administrator', 'editor', 'reviewer')");
+  test('regular user cannot access movie revision history endpoint', async () => {
+    const res = await request(app).get(`/api/movies/${movieId}/revisions`)
+      .set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  test('regular user does NOT see revisions on content detail (draft is hidden)', async () => {
+    const res = await request(app).get(`/api/content/${contentId}`)
+      .set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  test('editorial user sees content revisions', async () => {
+    const res = await request(app).get(`/api/content/${contentId}`)
+      .set('Authorization', `Bearer ${editorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.item.revisions).toBeDefined();
+  });
+
+  test('regular user cannot access content review history', async () => {
+    const res = await request(app).get(`/api/content/${contentId}/reviews`)
+      .set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(403);
   });
 });

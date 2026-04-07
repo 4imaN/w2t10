@@ -1,11 +1,12 @@
-const { refreshSuggestions } = require('../services/search.service');
+const searchService = require('../services/search.service');
+const { logger } = require('../utils/logger');
 
 async function runSuggestionsRefresh() {
   try {
-    const count = await refreshSuggestions();
-    console.log(`[Suggestions-Refresh] Refreshed ${count} search suggestions`);
+    const count = await searchService.refreshSuggestions();
+    logger.info('suggestions-refresh completed', { job: 'suggestions-refresh', refreshed: count });
   } catch (err) {
-    console.error('[Suggestions-Refresh] Error:', err.message);
+    logger.error('suggestions-refresh failed', { job: 'suggestions-refresh', error: err.message });
   }
 }
 

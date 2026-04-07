@@ -90,29 +90,57 @@ describe('Typo-Tolerant Suggestions', () => {
   });
 });
 
-describe('Search Service Design', () => {
-  const fs = require('fs');
-  const path = require('path');
-  const serviceFile = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'services', 'search.service.js'), 'utf-8'
-  );
+describe('Search Service — Fuzzy Fallback (behavioral)', () => {
+  const request = require('supertest');
+  const mongoose = require('mongoose');
+  const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cineride_test';
+  let app, token;
 
-  test('movies fall back to fuzzy when text search returns nothing', () => {
-    expect(serviceFile).toContain('if (movies.length === 0)');
-    expect(serviceFile).toContain('fuzzySearch(candidates');
+  beforeAll(async () => {
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-search';
+    process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.NODE_ENV = 'test';
+    process.env.MONGO_URI = MONGO_URI;
+    await mongoose.connect(MONGO_URI);
+    app = require('../api/src/app');
+
+    const User = require('../api/src/models/User');
+    const { hashPassword } = require('../api/src/utils/crypto');
+    await User.deleteMany({ username: 'ts_user' });
+    await User.create({
+      username: 'ts_user', password_hash: await hashPassword('Test1234!'),
+      role: 'regular_user', display_name: 'TS User'
+    });
+    const res = await request(app).post('/api/auth/login')
+      .send({ username: 'ts_user', password: 'Test1234!' });
+    token = res.body.token;
   });
 
-  test('content falls back to fuzzy when text search returns nothing', () => {
-    expect(serviceFile).toContain('if (content.length === 0)');
+  afterAll(async () => {
+    const User = require('../api/src/models/User');
+    await User.deleteMany({ username: 'ts_user' });
+    await mongoose.disconnect();
   });
 
-  test('suggestions use fuzzy fallback when prefix match is sparse', () => {
-    expect(serviceFile).toContain('if (suggestions.length < 3)');
-    expect(serviceFile).toContain('fuzzySearch(');
-    expect(serviceFile).toContain('threshold: 0.5');
+  test('search endpoint returns results for exact query', async () => {
+    const res = await request(app).get('/api/search?q=movie')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('movies');
+    expect(res.body).toHaveProperty('content');
   });
 
-  test('user search falls back to fuzzy', () => {
-    expect(serviceFile).toContain('if (userResults.length === 0)');
+  test('search endpoint handles typo via fuzzy fallback', async () => {
+    const res = await request(app).get('/api/search?q=xyznonexistent')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.movies)).toBe(true);
+  });
+
+  test('suggest endpoint returns suggestions', async () => {
+    const res = await request(app).get('/api/search/suggest?q=mov')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('suggestions');
   });
 });

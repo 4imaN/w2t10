@@ -1,4 +1,4 @@
-const { parseImportFile, parseCSVLine, extractYear } = require('../api/src/services/movie-import.service');
+const { parseImportFile, parseCSVLine, extractYear, createImportJob } = require('../api/src/services/movie-import.service');
 
 describe('Movie Import — CSV Parser', () => {
   test('parseCSVLine handles simple values', () => {
@@ -89,34 +89,66 @@ describe('Movie Import — Year Extraction', () => {
   });
 });
 
-describe('Movie Import — Conflict Detection Design', () => {
-  const fs = require('fs');
-  const path = require('path');
-  const serviceFile = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'services', 'movie-import.service.js'), 'utf-8'
-  );
+describe('Movie Import — Conflict Detection (behavioral)', () => {
+  const mongoose = require('mongoose');
+  const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cineride_test';
 
-  test('conflict detection includes release_date', () => {
-    expect(serviceFile).toContain("field: 'release_date'");
-    expect(serviceFile).toContain("record.release_date");
+  beforeAll(async () => {
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-import';
+    process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.NODE_ENV = 'test';
+    await mongoose.connect(MONGO_URI);
   });
 
-  test('conflict detection includes all scalar fields', () => {
-    expect(serviceFile).toContain("'title', 'description', 'mpaa_rating'");
+  afterAll(async () => {
+    await mongoose.disconnect();
   });
 
-  test('matching uses release year when available', () => {
-    expect(serviceFile).toContain('extractYear');
-    expect(serviceFile).toContain('$gte: yearStart');
-    expect(serviceFile).toContain('$lt: yearEnd');
+  test('createImportJob detects conflicts on title+release_date', async () => {
+    const Movie = require('../api/src/models/Movie');
+    const userId = new mongoose.Types.ObjectId();
+
+    const existing = await Movie.create({
+      title: 'ConflictTest Movie',
+      description: 'Original',
+      mpaa_rating: 'PG',
+      release_date: new Date('2024-06-15'),
+      created_by: userId
+    });
+
+    const importContent = JSON.stringify([{
+      title: 'ConflictTest Movie',
+      description: 'Imported version',
+      mpaa_rating: 'R',
+      release_date: '2024-06-15'
+    }]);
+
+    const job = await createImportJob(importContent, 'test.json', userId);
+    expect(job.records).toHaveLength(1);
+
+    const record = job.records[0];
+    expect(record.conflicts.length).toBeGreaterThan(0);
+    const conflictFields = record.conflicts.map(c => c.field);
+    expect(conflictFields).toContain('description');
+    expect(conflictFields).toContain('mpaa_rating');
+
+    await Movie.deleteOne({ _id: existing._id });
+    const MovieImportJob = require('../api/src/models/MovieImportJob');
+    await MovieImportJob.deleteOne({ _id: job._id });
   });
 
-  test('merge execution handles release_date field specifically', () => {
-    expect(serviceFile).toContain("conflict.field === 'release_date'");
-    expect(serviceFile).toContain("new Date(conflict.imported_value)");
-  });
+  test('import records without matching existing movie have no conflicts', async () => {
+    const userId = new mongoose.Types.ObjectId();
+    const importContent = JSON.stringify([{
+      title: 'Brand New Unique Movie ' + Date.now(),
+      description: 'Unique',
+      mpaa_rating: 'G'
+    }]);
 
-  test('revision snapshot created on import merge', () => {
-    expect(serviceFile).toContain("createSnapshot(movie, userId, 'import_merge')");
+    const job = await createImportJob(importContent, 'test.json', userId);
+    expect(job.records[0].conflicts).toHaveLength(0);
+
+    const MovieImportJob = require('../api/src/models/MovieImportJob');
+    await MovieImportJob.deleteOne({ _id: job._id });
   });
 });

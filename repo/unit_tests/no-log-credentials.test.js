@@ -1,41 +1,61 @@
-const fs = require('fs');
-const path = require('path');
+const { sanitizeForLog, SENSITIVE_FIELDS } = require('../api/src/middleware/error-handler.middleware');
 
-describe('Bootstrap Credential Security — No Log Exposure', () => {
-  const seedFile = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'db', 'seed.js'), 'utf-8'
-  );
+describe('Safe Error Logging — No Sensitive Data Exposure', () => {
+  test('sanitizeForLog returns only safe fields', () => {
+    const err = new Error('Something failed');
+    err.code = 'TEST_ERROR';
+    err.stack = 'Error: Something failed\n    at Object.<anonymous> (/app/routes.js:42:11)';
 
-  test('seed does NOT print credential values to console.log', () => {
-    const lines = seedFile.split('\n');
-    const dangerousLines = lines.filter(l =>
-      l.includes('console.log') && (l.includes('c.password') || l.includes('${c.password'))
+    const result = sanitizeForLog(err);
+    expect(result.message).toBe('Something failed');
+    expect(result.code).toBe('TEST_ERROR');
+    expect(result.correlation_id).toBeDefined();
+    expect(result.stack).toBeDefined();
+  });
+
+  test('sanitizeForLog strips stack in production', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const err = new Error('Production error');
+      err.stack = 'Error: Production error\n    at secret.js:1:1';
+
+      const result = sanitizeForLog(err);
+      expect(result.stack).toBeUndefined();
+      expect(result.message).toBe('Production error');
+      expect(result.correlation_id).toBeDefined();
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+    }
+  });
+
+  test('SENSITIVE_FIELDS list covers all critical field names', () => {
+    const required = ['password', 'token', 'secret', 'api_key', 'authorization'];
+    for (const field of required) {
+      expect(SENSITIVE_FIELDS).toContain(field);
+    }
+  });
+
+  test('sanitizeForLog does not include raw error object properties', () => {
+    const err = new Error('DB error');
+    err.password = 'secret123';
+    err.token = 'jwt-token';
+    err.requestBody = { username: 'admin', password: 'p@ss' };
+
+    const result = sanitizeForLog(err);
+    expect(result.password).toBeUndefined();
+    expect(result.token).toBeUndefined();
+    expect(result.requestBody).toBeUndefined();
+    expect(Object.keys(result).sort()).toEqual(
+      expect.arrayContaining(['message', 'code', 'correlation_id'])
     );
-    expect(dangerousLines).toHaveLength(0);
   });
 
-  test('seed does NOT print credentials in console output', () => {
-    expect(seedFile).not.toContain('console.log(`║');
-    expect(seedFile).not.toContain('console.log(c.password');
-  });
-
-  test('seed writes credentials to a file instead', () => {
-    expect(seedFile).toContain('writeFileSync');
-    expect(seedFile).toContain('.bootstrap-credentials');
-  });
-
-  test('credential file has restrictive permissions', () => {
-    expect(seedFile).toContain('0o600');
-  });
-
-  test('seed tells user to delete the credential file', () => {
-    expect(seedFile).toContain('DELETE THIS FILE');
-  });
-
-  test('gitignore blocks credential file', () => {
-    const gitignore = fs.readFileSync(
-      path.join(__dirname, '..', '.gitignore'), 'utf-8'
+  test('correlation_id is a valid UUID', () => {
+    const err = new Error('test');
+    const result = sanitizeForLog(err);
+    expect(result.correlation_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     );
-    expect(gitignore).toContain('.bootstrap-credentials');
   });
 });

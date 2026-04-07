@@ -50,7 +50,6 @@ describe('Crypto Utils', () => {
       const buffer = Buffer.from('Hello, World!');
       const fingerprint = computeFileFingerprint(buffer);
       expect(fingerprint).toHaveLength(64);
-      // Same content → same hash
       const fingerprint2 = computeFileFingerprint(Buffer.from('Hello, World!'));
       expect(fingerprint).toBe(fingerprint2);
     });

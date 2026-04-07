@@ -11,7 +11,7 @@ async function createDispute(data, userId, userRole) {
   const ride = await RideRequest.findOne({ _id: data.ride_request, deleted_at: null });
   if (!ride) throw new NotFoundError('Ride request');
 
-  // Non-privileged users can only dispute their own rides
+
   if (!PRIVILEGED_ROLES.includes(userRole)) {
     if (ride.requester.toString() !== userId.toString()) {
       throw new ForbiddenError('You can only dispute your own ride requests');
@@ -22,7 +22,7 @@ async function createDispute(data, userId, userRole) {
     throw new ValidationError('Can only dispute rides that are accepted, in progress, or completed');
   }
 
-  // Transition ride to in_dispute
+
   await transitionRide(ride._id, 'in_dispute', userId, `Dispute initiated: ${data.reason}`);
 
   const escalationHours = await getConfig('dispute_escalation_hours', 24);
@@ -54,7 +54,7 @@ async function getDisputes(filters = {}, page = 1, limit = 20) {
     .skip((page - 1) * limit)
     .limit(limit);
 
-  // Decrypt detail for display in list
+
   const decryptedDisputes = disputes.map(d => {
     const obj = d.toObject();
     if (obj.detail_encrypted) {
@@ -73,7 +73,7 @@ async function getDisputeById(id) {
     .populate('assigned_dispatcher', 'username display_name');
   if (!dispute) throw new NotFoundError('Dispute');
 
-  // Decrypt encrypted fields for display
+
   if (dispute.detail_encrypted) {
     dispute._doc.detail = decrypt(dispute.detail_encrypted);
   }
@@ -84,9 +84,16 @@ async function getDisputeById(id) {
   return dispute;
 }
 
-async function assignDispute(disputeId, dispatcherId) {
+async function assignDispute(disputeId, dispatcherId, userRole) {
   const dispute = await Dispute.findOne({ _id: disputeId, deleted_at: null });
   if (!dispute) throw new NotFoundError('Dispute');
+
+
+  if (dispute.assigned_dispatcher &&
+      dispute.assigned_dispatcher.toString() !== dispatcherId.toString() &&
+      userRole !== 'administrator') {
+    throw new ForbiddenError('Only the assigned dispatcher or an admin can modify this dispute');
+  }
 
   dispute.assigned_dispatcher = dispatcherId;
   dispute.status = 'investigating';
@@ -94,9 +101,21 @@ async function assignDispute(disputeId, dispatcherId) {
   return dispute;
 }
 
-async function resolveDispute(disputeId, dispatcherId, resolution, notes) {
+function enforceDisputeAccess(dispute, userId, userRole) {
+  if (userRole === 'administrator') return;
+  if (!dispute.assigned_dispatcher) {
+    throw new ForbiddenError('Dispute must be assigned before it can be resolved');
+  }
+  if (dispute.assigned_dispatcher.toString() !== userId.toString()) {
+    throw new ForbiddenError('Only the assigned dispatcher or an admin can modify this dispute');
+  }
+}
+
+async function resolveDispute(disputeId, dispatcherId, resolution, notes, userRole) {
   const dispute = await Dispute.findOne({ _id: disputeId, deleted_at: null });
   if (!dispute) throw new NotFoundError('Dispute');
+
+  enforceDisputeAccess(dispute, dispatcherId, userRole);
 
   dispute.resolution = resolution;
   dispute.resolution_notes_encrypted = notes ? encrypt(notes) : null;
@@ -104,7 +123,7 @@ async function resolveDispute(disputeId, dispatcherId, resolution, notes) {
   dispute.assigned_dispatcher = dispatcherId;
   await dispute.save();
 
-  // If resolved, transition ride back from dispute
+
   if (dispute.status === 'resolved') {
     const ride = await RideRequest.findById(dispute.ride_request);
     if (ride && ride.status === 'in_dispute') {

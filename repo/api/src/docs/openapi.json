@@ -146,7 +146,8 @@
     },
     "/movies/{id}": {
       "get": { "summary": "Get movie by ID", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie detail" } } },
-      "put": { "summary": "Update movie (staff only)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie updated" } } }
+      "put": { "summary": "Update movie (staff only)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie updated" } } },
+      "delete": { "summary": "Delete movie (staff only)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Movie deleted" } } }
     },
     "/movies/{id}/poster": {
       "post": { "summary": "Upload poster (JPG/PNG, max 10MB)", "tags": ["Movies"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "poster": { "type": "string", "format": "binary" } } } } } }, "responses": { "200": { "description": "Poster uploaded" } } }
@@ -156,6 +157,15 @@
     },
     "/movie-import/upload": {
       "post": { "summary": "Upload import file (JSON/CSV)", "tags": ["Movie Import"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Import job created" } } }
+    },
+    "/movie-import/{jobId}": {
+      "get": { "summary": "Get import job status", "tags": ["Movie Import"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Import job with parsed records and conflicts" } } }
+    },
+    "/movie-import/{jobId}/resolve/{recordIndex}": {
+      "put": { "summary": "Resolve conflicts for a record", "tags": ["Movie Import"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "recordIndex", "in": "path", "required": true, "schema": { "type": "integer" } }], "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "resolutions": { "type": "object", "description": "Map of conflict field to resolution value" } } } } } }, "responses": { "200": { "description": "Conflict resolved" } } }
+    },
+    "/movie-import/{jobId}/skip/{recordIndex}": {
+      "post": { "summary": "Skip a conflicted record", "tags": ["Movie Import"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "recordIndex", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Record skipped" } } }
     },
     "/movie-import/{jobId}/execute": {
       "post": { "summary": "Execute import after conflict resolution", "tags": ["Movie Import"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Import executed" } } }
@@ -254,7 +264,8 @@
     },
     "/content/{id}": {
       "get": { "summary": "Get content item (published for non-editorial)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Content detail" } } },
-      "put": { "summary": "Update draft content (staff)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Content updated" } } }
+      "put": { "summary": "Update draft content (staff)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Content updated" } } },
+      "delete": { "summary": "Delete content (staff only)", "tags": ["Content"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Content deleted" } } }
     },
     "/content/{id}/reviews": {
       "get": { "summary": "Get content review history (editorial)", "tags": ["Content Review"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Review history" } } }
@@ -289,6 +300,9 @@
     "/dispatch/carpool/group": {
       "post": { "summary": "Group rides into carpool", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "responses": { "201": { "description": "Carpool group created" } } }
     },
+    "/dispatch/carpool/group/{groupId}": {
+      "get": { "summary": "View carpool group", "tags": ["Dispatch"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "groupId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Carpool group rides" } } }
+    },
     "/sensors/devices/{id}": {
       "get": { "summary": "Get sensor device detail", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Device detail" } } },
       "put": { "summary": "Update sensor device (admin)", "tags": ["Sensors"], "security": [{ "BearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Device updated" } } }
@@ -311,7 +325,7 @@
       "get": { "summary": "Read content via extension API", "tags": ["Extensions"], "security": [{ "ApiKeyAuth": [] }], "responses": { "200": { "description": "Content" } } }
     },
     "/extensions/rides": {
-      "get": { "summary": "Read rides via extension API", "tags": ["Extensions"], "security": [{ "ApiKeyAuth": [] }], "responses": { "200": { "description": "Rides" } } }
+      "get": { "summary": "Read rides via extension API (minimized fields, filterable by status/date)", "tags": ["Extensions"], "security": [{ "ApiKeyAuth": [] }], "parameters": [{ "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending_match", "accepted", "in_progress", "completed", "canceled"] } }, { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "limit", "in": "query", "schema": { "type": "integer" } }], "responses": { "200": { "description": "Rides (minimized safe field set)" }, "422": { "description": "Invalid status filter" } } }
     }
   }
 }

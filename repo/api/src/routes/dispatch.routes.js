@@ -8,7 +8,7 @@ const { mongoIdParam, paginationValidation, createDisputeValidation } = require(
 
 router.use(authMiddleware, dispatcherOrAdmin);
 
-// GET /api/dispatch/queue — pending ride requests for dispatchers
+
 router.get('/queue', paginationValidation, async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -17,7 +17,7 @@ router.get('/queue', paginationValidation, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/dispatch/rides/:id/accept
+
 router.post('/rides/:id/accept', mongoIdParam, async (req, res, next) => {
   try {
     const ride = await rideService.acceptRide(req.params.id, req.user.id, req.body.notes);
@@ -25,7 +25,7 @@ router.post('/rides/:id/accept', mongoIdParam, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/dispatch/rides/:id/transition
+
 router.post('/rides/:id/transition', mongoIdParam, async (req, res, next) => {
   try {
     const { to_status, reason } = req.body;
@@ -34,7 +34,7 @@ router.post('/rides/:id/transition', mongoIdParam, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/dispatch/rides/:id/approve-cancel
+
 router.post('/rides/:id/approve-cancel', mongoIdParam, async (req, res, next) => {
   try {
     const ride = await rideService.approveCancellation(req.params.id, req.user.id);
@@ -42,7 +42,7 @@ router.post('/rides/:id/approve-cancel', mongoIdParam, async (req, res, next) =>
   } catch (err) { next(err); }
 });
 
-// GET /api/dispatch/disputes
+
 router.get('/disputes', paginationValidation, async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
@@ -51,7 +51,7 @@ router.get('/disputes', paginationValidation, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/dispatch/disputes/:id
+
 router.get('/disputes/:id', mongoIdParam, async (req, res, next) => {
   try {
     const dispute = await disputeService.getDisputeById(req.params.id);
@@ -59,19 +59,19 @@ router.get('/disputes/:id', mongoIdParam, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/dispatch/disputes/:id/assign
+
 router.post('/disputes/:id/assign', mongoIdParam, async (req, res, next) => {
   try {
-    const dispute = await disputeService.assignDispute(req.params.id, req.user.id);
+    const dispute = await disputeService.assignDispute(req.params.id, req.user.id, req.user.role);
     res.json({ dispute });
   } catch (err) { next(err); }
 });
 
-// POST /api/dispatch/disputes/:id/resolve
+
 router.post('/disputes/:id/resolve', mongoIdParam, async (req, res, next) => {
   try {
     const { resolution, notes } = req.body;
-    const dispute = await disputeService.resolveDispute(req.params.id, req.user.id, resolution, notes);
+    const dispute = await disputeService.resolveDispute(req.params.id, req.user.id, resolution, notes, req.user.role);
     res.json({ dispute });
   } catch (err) { next(err); }
 });

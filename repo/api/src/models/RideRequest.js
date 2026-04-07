@@ -85,12 +85,44 @@ const rideRequestSchema = new mongoose.Schema({
     rating: { type: Number, min: 1, max: 5, default: null },
     comment: { type: String, default: null }
   },
+  fare_amount: {
+    type: Number,
+    default: null,
+    min: 0
+  },
   deleted_at: {
     type: Date,
     default: null
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+rideRequestSchema.pre('save', function(next) {
+  if (!this.isNew && this.isModified('state_transitions')) {
+    const original = this._original_transitions_count;
+    if (original !== undefined) {
+      const current = this.state_transitions.length;
+      if (current < original) {
+        return next(new Error('IMMUTABLE_LOG: Cannot remove state transition entries'));
+      }
+    }
+  }
+  next();
+});
+
+rideRequestSchema.post('init', function(doc) {
+  doc._original_transitions_count = doc.state_transitions ? doc.state_transitions.length : 0;
+});
+
+rideRequestSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate'], function(next) {
+  const update = this.getUpdate();
+  const updateStr = JSON.stringify(update);
+  if (updateStr.includes('$pull') && updateStr.includes('state_transitions') ||
+      updateStr.includes('$set') && updateStr.includes('state_transitions') && !updateStr.includes('$push')) {
+    return next(new Error('IMMUTABLE_LOG: Cannot modify or remove state transition entries'));
+  }
+  next();
 });
 
 rideRequestSchema.index({ status: 1, deleted_at: 1 });

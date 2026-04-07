@@ -1,13 +1,14 @@
-const { retryFailedEntries } = require('../services/ledger.service');
+const ledgerService = require('../services/ledger.service');
+const { logger } = require('../utils/logger');
 
 async function runLedgerRetry() {
   try {
-    const count = await retryFailedEntries();
+    const count = await ledgerService.retryFailedEntries();
     if (count > 0) {
-      console.log(`[Ledger-Retry] Retried ${count} failed entries`);
+      logger.info('ledger-retry completed', { job: 'ledger-retry', retried: count });
     }
   } catch (err) {
-    console.error('[Ledger-Retry] Error:', err.message);
+    logger.error('ledger-retry failed', { job: 'ledger-retry', error: err.message });
   }
 }
 

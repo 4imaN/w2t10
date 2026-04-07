@@ -7,7 +7,6 @@ async function createRideRequest(data, userId) {
   const start = new Date(data.time_window_start);
   const end = new Date(data.time_window_end);
 
-  // Validate time window span <= 4 hours
   const spanHours = (end - start) / (1000 * 60 * 60);
   if (spanHours > 4) {
     throw new ValidationError('Time window cannot exceed 4 hours');
@@ -16,7 +15,6 @@ async function createRideRequest(data, userId) {
     throw new ValidationError('End time must be after start time');
   }
 
-  // Validate start is in the future
   const minAdvance = await getConfig('min_ride_advance_minutes', 5);
   const minStart = new Date(Date.now() + minAdvance * 60000);
   if (start < minStart) {
@@ -108,17 +106,18 @@ async function cancelRide(id, userId, userRole) {
   const ride = await RideRequest.findOne({ _id: id, deleted_at: null });
   if (!ride) throw new NotFoundError('Ride request');
 
-  // Check if free cancellation window
+  if (!['pending_match', 'accepted'].includes(ride.status)) {
+    throw new ValidationError(`Cannot cancel ride in '${ride.status}' status`);
+  }
+
   const freeCancelMinutes = await getConfig('free_cancel_window_minutes', 5);
   const freeCancelDeadline = new Date(ride.created_at.getTime() + freeCancelMinutes * 60000);
   const now = new Date();
 
   if (now <= freeCancelDeadline || ['administrator', 'dispatcher'].includes(userRole)) {
-    // Free cancellation or dispatcher/admin override
     return transitionRide(id, 'canceled', userId, 'Canceled' + (now > freeCancelDeadline ? ' (dispatcher approved)' : ' (within free window)'));
   }
 
-  // After free window — requires dispatcher approval
   ride.cancellation_requested = true;
   await ride.save();
   return { ride, requiresApproval: true, message: 'Cancellation requires dispatcher approval' };

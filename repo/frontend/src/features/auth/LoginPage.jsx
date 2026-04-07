@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 
-// ── Portal configuration ─────────────────────────────────────────────
 const PORTALS = {
   admin: {
     role: 'administrator',
@@ -15,7 +14,7 @@ const PORTALS = {
     accentText: 'text-red-400',
     accentRing: 'focus-visible:ring-red-500',
     inputBorder: 'border-red-900/50 bg-gray-800/80 text-gray-100 placeholder:text-gray-500',
-    hint: 'admin / Admin123!',
+    hint: 'Use credentials from the bootstrap credentials file.',
     description: 'Full system access. Manage users, settings, and all operations.',
     decorPattern: 'radial-gradient(circle at 20% 80%, rgba(220,38,38,0.08) 0%, transparent 50%)',
   },
@@ -30,7 +29,7 @@ const PORTALS = {
     accentText: 'text-blue-400',
     accentRing: 'focus-visible:ring-blue-500',
     inputBorder: 'border-blue-900/50 bg-slate-800/80 text-gray-100 placeholder:text-gray-500',
-    hint: 'editor1 / Editor123!',
+    hint: 'Use credentials from the bootstrap credentials file.',
     description: 'Create movies, publish content, and manage your editorial workflow.',
     decorPattern: 'radial-gradient(circle at 80% 20%, rgba(59,130,246,0.08) 0%, transparent 50%)',
   },
@@ -45,7 +44,7 @@ const PORTALS = {
     accentText: 'text-purple-400',
     accentRing: 'focus-visible:ring-purple-500',
     inputBorder: 'border-purple-900/50 bg-gray-800/80 text-gray-100 placeholder:text-gray-500',
-    hint: 'reviewer1 / Reviewer123!',
+    hint: 'Use credentials from the bootstrap credentials file.',
     description: 'Review, approve, or reject content submissions with documented reasoning.',
     decorPattern: 'radial-gradient(circle at 50% 90%, rgba(147,51,234,0.08) 0%, transparent 50%)',
   },
@@ -60,7 +59,7 @@ const PORTALS = {
     accentText: 'text-orange-400',
     accentRing: 'focus-visible:ring-orange-500',
     inputBorder: 'border-orange-900/50 bg-gray-800/80 text-gray-100 placeholder:text-gray-500',
-    hint: 'dispatcher1 / Dispatch123!',
+    hint: 'Use credentials from the bootstrap credentials file.',
     description: 'Manage ride requests, resolve disputes, and oversee daily operations.',
     decorPattern: 'radial-gradient(circle at 80% 80%, rgba(234,88,12,0.08) 0%, transparent 50%)',
   },
@@ -75,7 +74,7 @@ const PORTALS = {
     accentText: 'text-emerald-400',
     accentRing: 'focus-visible:ring-emerald-500',
     inputBorder: 'border-emerald-900/50 bg-gray-800/80 text-gray-100 placeholder:text-gray-500',
-    hint: 'user1 / User1234!',
+    hint: 'Use credentials from the bootstrap credentials file.',
     description: 'Browse movies, read content, and request rides for your community.',
     decorPattern: 'radial-gradient(circle at 20% 20%, rgba(16,185,129,0.08) 0%, transparent 50%)',
   },
@@ -84,7 +83,6 @@ const PORTALS = {
 export default function LoginPage() {
   const params = useParams();
   const location = window.location.pathname;
-  // Extract portal from URL: /admin/login → admin, /editor/login → editor, /login → user
   const portal = params.portal || (['admin','editor','reviewer','dispatcher'].find(p => location.startsWith(`/${p}/login`))) || 'user';
   const config = PORTALS[portal];
   const navigate = useNavigate();
@@ -93,12 +91,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [shake, setShake] = useState(false);
 
-  // If already logged in, redirect to dashboard
   if (token && user) {
     return <Navigate to={`/${portal === 'user' ? '' : portal + '/'}dashboard`} replace />;
   }
 
-  // Invalid portal
   if (!config) {
     return <Navigate to="/login" replace />;
   }
@@ -224,5 +220,4 @@ export default function LoginPage() {
   );
 }
 
-// Export portal config for use in workspace themes
 export { PORTALS };

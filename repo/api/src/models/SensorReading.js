@@ -11,7 +11,7 @@ const sensorReadingSchema = new mongoose.Schema({
   },
   value: {
     type: Number,
-    required: true
+    default: null
   },
   unit: {
     type: String,

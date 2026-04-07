@@ -9,7 +9,6 @@ describe('Environment Validation', () => {
     process.env = { ...originalEnv };
     mockExit.mockClear();
     mockConsoleError.mockClear();
-    // Clear require cache so validateEnv re-reads env
     delete require.cache[require.resolve('../api/src/utils/env')];
   });
 

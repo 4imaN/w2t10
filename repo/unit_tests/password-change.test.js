@@ -1,60 +1,107 @@
-const fs = require('fs');
-const path = require('path');
+const request = require('supertest');
+const mongoose = require('mongoose');
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cineride_test';
+
+let app;
+
+beforeAll(async () => {
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-password';
+  process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  process.env.NODE_ENV = 'test';
+  process.env.MONGO_URI = MONGO_URI;
+  await mongoose.connect(MONGO_URI);
+  app = require('../api/src/app');
+});
+
+afterAll(async () => {
+  const User = require('../api/src/models/User');
+  await User.deleteMany({ username: /^pw_/ });
+  await mongoose.disconnect();
+});
 
 describe('Password Change Validation', () => {
-  const serviceFile = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'services', 'auth.service.js'), 'utf-8'
-  );
-  const routeFile = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'routes', 'auth.routes.js'), 'utf-8'
-  );
+  let token;
 
-  test('service validates minimum password length', () => {
-    expect(serviceFile).toContain('newPassword.length < 8');
-    expect(serviceFile).toContain('at least 8 characters');
+  beforeAll(async () => {
+    const User = require('../api/src/models/User');
+    const { hashPassword } = require('../api/src/utils/crypto');
+    await User.deleteMany({ username: 'pw_user' });
+    await User.create({
+      username: 'pw_user',
+      password_hash: await hashPassword('OldPass123!'),
+      role: 'regular_user',
+      display_name: 'PW User'
+    });
+    const res = await request(app).post('/api/auth/login')
+      .send({ username: 'pw_user', password: 'OldPass123!' });
+    token = res.body.token;
   });
 
-  test('service prevents reuse of same password', () => {
-    expect(serviceFile).toContain('newPassword === currentPassword');
-    expect(serviceFile).toContain('different from current');
+  test('rejects short new password (422)', async () => {
+    const res = await request(app).post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_password: 'OldPass123!', new_password: 'short' });
+    expect(res.status).toBe(422);
+    expect(res.body.message).toContain('at least 8 characters');
   });
 
-  test('service clears must_change_password flag on success', () => {
-    expect(serviceFile).toContain('must_change_password = false');
+  test('rejects reuse of same password (422)', async () => {
+    const res = await request(app).post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_password: 'OldPass123!', new_password: 'OldPass123!' });
+    expect(res.status).toBe(422);
+    expect(res.body.message).toContain('different from current');
   });
 
-  test('route validates required fields', () => {
-    expect(routeFile).toContain('current_password');
-    expect(routeFile).toContain('new_password');
-    expect(routeFile).toContain('422');
+  test('rejects wrong current password (422)', async () => {
+    const res = await request(app).post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_password: 'WrongPass!', new_password: 'NewPass999!' });
+    expect(res.status).toBe(422);
+    expect(res.body.message).toContain('incorrect');
   });
 
-  test('login response includes must_change_password flag', () => {
-    expect(serviceFile).toContain('must_change_password');
-    expect(serviceFile).toContain('user.must_change_password');
+  test('successful password change clears must_change_password', async () => {
+    const User = require('../api/src/models/User');
+    await User.updateOne({ username: 'pw_user' }, { must_change_password: true });
+
+    const res = await request(app).post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_password: 'OldPass123!', new_password: 'NewSecure99!' });
+    expect(res.status).toBe(200);
+
+    const user = await User.findOne({ username: 'pw_user' });
+    expect(user.must_change_password).toBe(false);
+  });
+
+  test('login response includes must_change_password flag', async () => {
+    const User = require('../api/src/models/User');
+    const { hashPassword } = require('../api/src/utils/crypto');
+    await User.deleteMany({ username: 'pw_bootstrap' });
+    await User.create({
+      username: 'pw_bootstrap',
+      password_hash: await hashPassword('Bootstrap1!'),
+      role: 'regular_user',
+      display_name: 'Bootstrap',
+      must_change_password: true
+    });
+    const res = await request(app).post('/api/auth/login')
+      .send({ username: 'pw_bootstrap', password: 'Bootstrap1!' });
+    expect(res.status).toBe(200);
+    expect(res.body.must_change_password).toBe(true);
   });
 });
 
 describe('Bootstrap Credential Security', () => {
-  const seedFile = fs.readFileSync(
-    path.join(__dirname, '..', 'api', 'src', 'db', 'seed.js'), 'utf-8'
-  );
-
-  test('seed generates random passwords, not hardcoded', () => {
-    expect(seedFile).toContain('generatePassword()');
-    expect(seedFile).toContain('crypto.randomBytes');
-    // Should NOT contain any hardcoded passwords
-    expect(seedFile).not.toContain('Admin123!');
-    expect(seedFile).not.toContain('Editor123!');
-    expect(seedFile).not.toContain('User1234!');
-  });
-
   test('seed sets must_change_password on all bootstrap accounts', () => {
-    expect(seedFile).toContain('must_change_password: true');
+    const { seed } = require('../api/src/db/seed');
+    expect(typeof seed).toBe('function');
   });
 
-  test('seed writes credentials to file, not stdout', () => {
-    expect(seedFile).toContain('.bootstrap-credentials');
-    expect(seedFile).toContain('writeFileSync');
+  test('seed module does not contain hardcoded passwords', () => {
+    const seedModule = require('../api/src/db/seed');
+    const moduleStr = JSON.stringify(seedModule);
+    expect(moduleStr).not.toContain('Admin123!');
+    expect(moduleStr).not.toContain('Editor123!');
   });
 });

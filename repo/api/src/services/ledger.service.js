@@ -6,17 +6,11 @@ const { getConfig } = require('./config.service');
 const { NotFoundError, ValidationError, ConflictError } = require('../utils/errors');
 
 function todayDate() {
-  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  return new Date().toISOString().split('T')[0];
 }
 
-/**
- * Attempt to post a ledger entry. This is the real posting step that can fail.
- * For the local ledger, posting validates receipt uniqueness per day and marks as posted.
- * Failures (e.g., duplicate receipt for the day) leave the entry in 'failed' for retry.
- */
 async function attemptPosting(entry) {
   try {
-    // Validate: no duplicate receipt_number for the same ledger_date (besides this entry)
     const dupReceipt = await LedgerEntry.findOne({
       receipt_number: entry.receipt_number,
       ledger_date: entry.ledger_date,
@@ -40,24 +34,33 @@ async function attemptPosting(entry) {
 }
 
 async function recordPayment(data, userId) {
-  // Check if day is closed
   const ledgerDate = data.ledger_date || todayDate();
   const recon = await Reconciliation.findOne({ ledger_date: ledgerDate, locked: true });
   if (recon) {
     throw new ValidationError(`Ledger for ${ledgerDate} is closed. Cannot add entries.`);
   }
 
-  // Idempotency check
   const existing = await LedgerEntry.findOne({ idempotency_key: data.idempotency_key });
   if (existing) {
     return { entry: existing, duplicate: true };
   }
 
-  // Amount consistency: if linked to a ride, validate total payments don't exceed
-  // a reasonable bound (entries for same ride should sum consistently)
+  if (data.amount < 0) {
+    throw new ValidationError('Payment amount must be non-negative');
+  }
+  if (data.amount === 0) {
+    throw new ValidationError('Payment amount must be greater than zero');
+  }
+
   if (data.ride_request) {
     const ride = await RideRequest.findById(data.ride_request);
     if (!ride) throw new NotFoundError('Ride request');
+
+    if (ride.fare_amount === null || ride.fare_amount === undefined) {
+      throw new ValidationError(
+        'FARE_MISSING: ride does not have a fare_amount set. Set fare before recording payment.'
+      );
+    }
 
     const existingEntries = await LedgerEntry.find({
       ride_request: data.ride_request,
@@ -65,21 +68,16 @@ async function recordPayment(data, userId) {
       deleted_at: null
     });
     const existingTotal = existingEntries.reduce((sum, e) => sum + e.amount, 0);
+    const newTotal = existingTotal + data.amount;
 
-    if (data.amount < 0) {
-      throw new ValidationError('Payment amount must be non-negative');
-    }
-    // Flag if total for this ride would exceed a configurable max per-ride amount
-    const maxRideAmount = await getConfig('max_ride_payment_amount', 500);
-    if (existingTotal + data.amount > maxRideAmount) {
+    if (newTotal > ride.fare_amount) {
       throw new ValidationError(
-        `Total payments for this ride would be $${(existingTotal + data.amount).toFixed(2)}, ` +
-        `exceeding the maximum of $${maxRideAmount}. Existing total: $${existingTotal.toFixed(2)}.`
+        `OVERPAY: total $${newTotal.toFixed(2)} would exceed fare $${ride.fare_amount.toFixed(2)}. ` +
+        `Existing: $${existingTotal.toFixed(2)}, attempted: $${data.amount.toFixed(2)}.`
       );
     }
   }
 
-  // Create the entry as 'pending' first
   const entry = await LedgerEntry.create({
     ride_request: data.ride_request || null,
     amount: data.amount,
@@ -94,13 +92,11 @@ async function recordPayment(data, userId) {
     last_retry_at: null
   });
 
-  // Attempt to post the entry (the real posting step)
   const postResult = await attemptPosting(entry);
 
   return { entry: postResult.entry, duplicate: false, posting_error: postResult.error };
 }
 
-// Explicitly create a failed entry (for testing the retry path)
 async function createFailedEntry(data, userId) {
   const ledgerDate = data.ledger_date || todayDate();
 
@@ -211,7 +207,6 @@ async function retryFailedEntries() {
 
   let retried = 0;
   for (const entry of entries) {
-    // Exponential backoff: 1s, 4s, 16s
     const backoffMs = Math.pow(4, entry.retry_count) * 1000;
     const lastAttempt = entry.last_retry_at || entry.created_at;
     const nextRetryAfter = new Date(lastAttempt.getTime() + backoffMs);
@@ -224,12 +219,34 @@ async function retryFailedEntries() {
       const result = await attemptPosting(entry);
       if (result.error === null) retried++;
     } catch {
-      // Still failed — keep as failed for next retry cycle
       await entry.save();
     }
   }
 
   return retried;
+}
+
+async function getRideSettlement(rideId) {
+  const ride = await RideRequest.findById(rideId);
+  if (!ride) throw new NotFoundError('Ride request');
+
+  const entries = await LedgerEntry.find({
+    ride_request: rideId,
+    status: { $in: ['posted', 'reconciled'] },
+    deleted_at: null
+  });
+  const totalPaid = entries.reduce((sum, e) => sum + e.amount, 0);
+  const fare = ride.fare_amount;
+
+  let status = 'no_fare';
+  if (fare !== null && fare !== undefined) {
+    if (totalPaid === 0) status = 'unpaid';
+    else if (totalPaid < fare) status = 'underpaid';
+    else if (totalPaid === fare) status = 'settled';
+    else status = 'overpaid';
+  }
+
+  return { ride_id: rideId, fare_amount: fare, total_paid: totalPaid, entry_count: entries.length, status };
 }
 
 module.exports = {
@@ -238,5 +255,6 @@ module.exports = {
   getLedgerEntries,
   getReconciliation,
   closeDayReconciliation,
-  retryFailedEntries
+  retryFailedEntries,
+  getRideSettlement
 };

@@ -4,7 +4,7 @@ const User = require('../models/User');
 const SearchSuggestion = require('../models/SearchSuggestion');
 const UserInteraction = require('../models/UserInteraction');
 const { fuzzySearch } = require('../utils/fuzzy-search');
-const { maskPhone } = require('../utils/phone-mask');
+const { sanitizeUser } = require('./user.service');
 
 const RATING_ORDER = { 'G': 1, 'PG': 2, 'PG-13': 3, 'R': 4, 'NC-17': 5, 'NR': 6 };
 
@@ -17,7 +17,6 @@ async function searchMovies(query, filters) {
     movies = await Movie.find({ ...baseQuery, $text: { $search: query } }, { score: { $meta: 'textScore' } })
       .select('-revisions').sort({ score: { $meta: 'textScore' } }).limit(50);
   } catch {
-    // $text index may not exist
   }
 
   if (movies.length === 0) {
@@ -73,6 +72,9 @@ async function unifiedSearch(query, filters = {}, page = 1, limit = 20, userRole
 
   if (searchTypes.includes('content')) {
     results.content = await searchContent(query, filters, userRole);
+    if (filters.sort === 'newest') {
+      results.content.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
   }
 
   if (searchTypes.includes('user') && ['administrator', 'dispatcher'].includes(userRole)) {
@@ -84,16 +86,12 @@ async function unifiedSearch(query, filters = {}, page = 1, limit = 20, userRole
       ]
     }).select('-password_hash -__v').limit(20);
 
-    let userResults = users.map(u => {
-      const obj = u.toObject();
-      obj.phone = maskPhone(obj.phone);
-      return obj;
-    });
+    let userResults = users.map(u => sanitizeUser(u));
 
     if (userResults.length === 0) {
       const allUsers = await User.find({ deleted_at: null }).select('-password_hash -__v').limit(100);
       userResults = fuzzySearch(
-        allUsers.map(u => { const o = u.toObject(); o.phone = maskPhone(o.phone); return o; }),
+        allUsers.map(u => sanitizeUser(u)),
         query,
         ['username', 'display_name']
       );
@@ -102,6 +100,11 @@ async function unifiedSearch(query, filters = {}, page = 1, limit = 20, userRole
   }
 
   results.total = results.movies.length + results.content.length + results.users.length;
+  results.sort_applied = {
+    movies: ['popularity', 'newest', 'rating'].includes(filters.sort) ? filters.sort : 'relevance',
+    content: filters.sort === 'newest' ? 'newest' : 'relevance',
+    users: 'relevance'
+  };
   return results;
 }
 

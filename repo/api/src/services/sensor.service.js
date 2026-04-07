@@ -10,13 +10,11 @@ async function ingestReading(data) {
 
   const timestamp = new Date(data.timestamp);
 
-  // Deduplication check
   const exists = await SensorReading.findOne({ device_id: data.device_id, timestamp, is_raw: true });
   if (exists) {
     throw new ConflictError(`Reading already exists for device ${data.device_id} at ${timestamp.toISOString()}`);
   }
 
-  // Time synchronization check
   const driftThreshold = await getConfig('time_drift_threshold_seconds', 300);
   const serverNow = new Date();
   const timeDriftSeconds = Math.abs((timestamp - serverNow) / 1000);
@@ -51,7 +49,6 @@ async function ingestReading(data) {
   const retentionDays = await getConfig('sensor_retention_days', 180);
   const expiresAt = new Date(Date.now() + retentionDays * 86400000);
 
-  // Always store the raw reading
   const rawReading = await SensorReading.create({
     device_id: data.device_id,
     timestamp,
@@ -64,21 +61,21 @@ async function ingestReading(data) {
     expires_at: expiresAt
   });
 
-  // If no outlier, also store a cleaned copy
-  // If outlier detected, store cleaned version with null value (excluded from cleaned queries)
-  if (!hasOutlier) {
-    await SensorReading.create({
-      device_id: data.device_id,
-      timestamp,
-      value: data.value,
-      unit: data.unit || device.unit || '',
-      is_raw: false,
-      is_cleaned: true,
-      outlier_flags: { range: false, spike: false, drift: false },
-      time_drift_seconds: timeDriftSeconds,
-      expires_at: expiresAt
-    });
-  }
+  // Cleaned-value policy:
+  // - Non-outlier readings: cleaned value = raw value (pass-through).
+  // - Outlier readings: cleaned value = null (excluded from analytics;
+  //   presence in cleaned set preserves the timestamp slot for gap detection).
+  await SensorReading.create({
+    device_id: data.device_id,
+    timestamp,
+    value: hasOutlier ? null : data.value,
+    unit: data.unit || device.unit || '',
+    is_raw: false,
+    is_cleaned: true,
+    outlier_flags: hasOutlier ? outlierFlags : { range: false, spike: false, drift: false, time_drift: false },
+    time_drift_seconds: timeDriftSeconds,
+    expires_at: expiresAt
+  });
 
   return rawReading;
 }
@@ -159,12 +156,20 @@ async function createDevice(data) {
   return SensorDevice.create(data);
 }
 
+const DEVICE_SAFE_PROJECTION = '-secret_hash';
+
+function stripSecretHash(device) {
+  const obj = device.toObject ? device.toObject() : { ...device };
+  delete obj.secret_hash;
+  return obj;
+}
+
 async function getDevices() {
-  return SensorDevice.find({ deleted_at: null }).sort({ device_id: 1 });
+  return SensorDevice.find({ deleted_at: null }).select(DEVICE_SAFE_PROJECTION).sort({ device_id: 1 });
 }
 
 async function getDeviceById(id) {
-  const device = await SensorDevice.findOne({ _id: id, deleted_at: null });
+  const device = await SensorDevice.findOne({ _id: id, deleted_at: null }).select(DEVICE_SAFE_PROJECTION);
   if (!device) throw new NotFoundError('Sensor device');
   return device;
 }
@@ -178,7 +183,7 @@ async function updateDevice(id, updates) {
     if (updates[f] !== undefined) device[f] = updates[f];
   }
   await device.save();
-  return device;
+  return stripSecretHash(device);
 }
 
 async function cleanupExpiredReadings() {
