@@ -4,14 +4,16 @@ Date: 2026-04-07
 Scope: recheck remaining items and challenge prior conclusion.
 
 ## Conclusion
-- Prior defect list status: **all fixed except one partial**.
+- Prior defect list status: **all fixed**.
 - Remaining partial item:
-  - Recommendation fallback test still uses indirect assertion for trending fill.
+  - None. Recommendation fallback test now uses concrete assertions for trending fill.
 
 ## Evidence
-- Indirect assertion still present:
-  - `unit_tests/recommendations.test.js:98-103`
-  - It checks `filledResult.movies.length >= catOnlyResult.movies.length` rather than asserting concrete fallback movie IDs/branch composition.
+- Recommendation fallback test now asserts concrete fallback composition in active source:
+  - `w2t10/repo/unit_tests/recommendations.test.js:110`
+  - `w2t10/repo/unit_tests/recommendations.test.js:111`
+  - `w2t10/repo/unit_tests/recommendations.test.js:112`
+- The indirect length-only assertion (`filledResult.movies.length >= catOnlyResult.movies.length`) is no longer present in active test files.
 
 ## What is now clearly fixed
 - Extension date-policy widening via `from` is blocked with `max(policyOldest, requestedFrom)`:
@@ -21,5 +23,5 @@ Scope: recheck remaining items and challenge prior conclusion.
   - `api/src/routes/manifest.js:1-96`
 
 ## Reviewer note
-- If acceptance criteria are "code path fixed" only, this can be treated as complete.
-- If acceptance criteria include "strong deterministic tests for high-risk branches," the recommendation fallback test remains partial.
+- If acceptance criteria are "code path fixed" only, this is complete.
+- If acceptance criteria include "strong deterministic tests for high-risk branches," this is also complete.
