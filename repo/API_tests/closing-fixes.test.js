@@ -168,12 +168,14 @@ describe('Search sort validation', () => {
 
 describe('Import file cleanup verification', () => {
   test('upload creates no persistent file in imports dir', async () => {
-    const importsDir = path.join(__dirname, '..', 'uploads', 'imports');
+    const uploadsDir = path.join(__dirname, '..', 'uploads');
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    const importsDir = path.join(uploadsDir, 'imports');
     const before = fs.existsSync(importsDir)
       ? fs.readdirSync(importsDir).filter(f => f !== '.gitkeep')
       : [];
 
-    const tmpFile = path.join(__dirname, '..', 'uploads', 'cf-test.json');
+    const tmpFile = path.join(uploadsDir, 'cf-test.json');
     fs.writeFileSync(tmpFile, JSON.stringify([{ title: 'Cleanup Verify' }]));
 
     await request(app).post('/api/movie-import/upload')
@@ -189,12 +191,14 @@ describe('Import file cleanup verification', () => {
   });
 
   test('failed validation leaves no orphan file', async () => {
-    const importsDir = path.join(__dirname, '..', 'uploads', 'imports');
+    const uploadsDir = path.join(__dirname, '..', 'uploads');
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    const importsDir = path.join(uploadsDir, 'imports');
     const before = fs.existsSync(importsDir)
       ? fs.readdirSync(importsDir).filter(f => f !== '.gitkeep')
       : [];
 
-    const tmpFile = path.join(__dirname, '..', 'uploads', 'cf-bad.xml');
+    const tmpFile = path.join(uploadsDir, 'cf-bad.xml');
     fs.writeFileSync(tmpFile, '<bad/>');
 
     await request(app).post('/api/movie-import/upload')

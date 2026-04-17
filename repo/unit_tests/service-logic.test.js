@@ -22,28 +22,19 @@ process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef01
 process.env.NODE_ENV = 'test';
 
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-
-let mongod;
+const { startTestDb, stopTestDb, clearCollections } = require('../API_tests/helpers/setup');
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
-  const uri = mongod.getUri();
-  process.env.MONGO_URI = uri;
-  await mongoose.connect(uri);
+  await startTestDb();
 }, 30000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  if (mongod) await mongod.stop();
+  await stopTestDb();
 }, 15000);
 
 // Clear every collection between suites so tests don't bleed state.
 afterEach(async () => {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    await collections[key].deleteMany({});
-  }
+  await clearCollections();
 });
 
 // ── helpers ──────────────────────────────────────────────────────────────────

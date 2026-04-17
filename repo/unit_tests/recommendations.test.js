@@ -76,12 +76,11 @@ describe('Recommendations — Cold Start branch', () => {
     expect(ids).toContain(curatedMovie._id.toString());
   });
 
-  test('cold_start result includes trending movies (by popularity)', async () => {
+  test('cold_start result includes trending movies (by interaction count)', async () => {
     const result = await recService.getColdStartRecommendations(20);
     const ids = result.movies.map(m => m._id.toString());
-    const hasHighPopularity = ids.includes(actionMovieViewed._id.toString()) ||
-                              ids.includes(actionMovieUnviewed._id.toString());
-    expect(hasHighPopularity).toBe(true);
+    // dramaMovie has 5 interactions, making it the top trending movie
+    expect(ids).toContain(dramaMovie._id.toString());
   });
 });
 

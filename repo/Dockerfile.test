@@ -1,4 +1,6 @@
-FROM node:18-alpine
+FROM node:18-slim
+
+RUN apt-get update && apt-get install -y libcurl4 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -6,16 +8,22 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+# Pre-download the mongod binary for mongodb-memory-server during build
+ENV MONGOMS_VERSION=7.0.0
+ENV MONGOMS_DISTRO=ubuntu-2204
+RUN node -e "const { MongoMemoryServer } = require('mongodb-memory-server'); MongoMemoryServer.create().then(s => s.stop()).catch(e => console.log('pre-download:', e.message))"
+
 # Copy the API source (tests import from api/src/)
 COPY api/ api/
 
-# Install API dependencies
-RUN cd api && npm ci && cd ..
+# Install API dependencies, then symlink mongoose to root's copy
+# so all test files and api models share the same mongoose instance
+RUN cd api && npm ci && rm -rf node_modules/mongoose && ln -s /app/node_modules/mongoose node_modules/mongoose && cd ..
 
 # Copy test suites
 COPY unit_tests/ unit_tests/
 COPY API_tests/ API_tests/
-COPY jest.config.js ./
+COPY jest.config.js jest.setup.js ./
 COPY scripts/ scripts/
 
 ENV NODE_ENV=test

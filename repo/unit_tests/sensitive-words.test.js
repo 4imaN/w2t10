@@ -2,16 +2,12 @@ process.env.JWT_SECRET = 'test-sensitive';
 process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 process.env.NODE_ENV = 'test';
 
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+const { startTestDb, stopTestDb } = require('../API_tests/helpers/setup');
 
-let mongod;
 let ConfigDictionary;
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
-  process.env.MONGO_URI = mongod.getUri();
-  await mongoose.connect(mongod.getUri());
+  await startTestDb();
 
   ConfigDictionary = require('../api/src/models/ConfigDictionary');
   await ConfigDictionary.create({
@@ -22,8 +18,7 @@ beforeAll(async () => {
 }, 30000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  if (mongod) await mongod.stop();
+  await stopTestDb();
 });
 
 // The sensitive-words utility caches results for 60 seconds using module-level

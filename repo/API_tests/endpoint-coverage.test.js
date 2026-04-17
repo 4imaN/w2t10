@@ -14,6 +14,8 @@
  */
 
 const request = require('supertest');
+const fs = require('fs');
+const path = require('path');
 const { startTestDb, stopTestDb, clearCollections } = require('./helpers/setup');
 
 // Minimal 1×1 JPEG as a Buffer (base64-encoded)
@@ -36,6 +38,11 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-jwt-secret-endpoint-coverage';
   process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   process.env.NODE_ENV = 'test';
+
+  // Ensure upload directories exist for poster/stills tests
+  for (const sub of ['posters', 'stills']) {
+    fs.mkdirSync(path.join('uploads', sub), { recursive: true });
+  }
 
   await startTestDb();
 

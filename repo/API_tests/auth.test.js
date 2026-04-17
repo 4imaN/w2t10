@@ -1,18 +1,22 @@
 const request = require('supertest');
-const mongoose = require('mongoose');
-const app = require('../api/src/app');
-const User = require('../api/src/models/User');
-const { hashPassword } = require('../api/src/utils/crypto');
+const { startTestDb, stopTestDb } = require('./helpers/setup');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cineride_test';
-
-let adminToken;
+let app, adminToken;
 
 beforeAll(async () => {
-  await mongoose.connect(MONGO_URI);
-  await User.deleteMany({});
+  process.env.JWT_SECRET = 'test-jwt-secret-auth';
+  process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  process.env.NODE_ENV = 'test';
+
+  await startTestDb();
+
+  app = require('../api/src/app');
+
+  const User = require('../api/src/models/User');
+  const { hashPassword } = require('../api/src/utils/crypto');
+
   await User.create({
-    username: 'testadmin',
+    username: 'auth_testadmin',
     password_hash: await hashPassword('Admin123!'),
     role: 'administrator',
     display_name: 'Test Admin',
@@ -21,18 +25,17 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await User.deleteMany({});
-  await mongoose.disconnect();
+  await stopTestDb();
 });
 
 describe('Auth API', () => {
   test('POST /api/auth/login — success', async () => {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ username: 'testadmin', password: 'Admin123!' });
+      .send({ username: 'auth_testadmin', password: 'Admin123!' });
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTruthy();
-    expect(res.body.user.username).toBe('testadmin');
+    expect(res.body.user.username).toBe('auth_testadmin');
     expect(res.body.user.role).toBe('administrator');
     adminToken = res.body.token;
   });
@@ -40,7 +43,7 @@ describe('Auth API', () => {
   test('POST /api/auth/login — invalid credentials', async () => {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ username: 'testadmin', password: 'wrong' });
+      .send({ username: 'auth_testadmin', password: 'wrong' });
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('UNAUTHORIZED');
   });
@@ -57,7 +60,7 @@ describe('Auth API', () => {
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.user.username).toBe('testadmin');
+    expect(res.body.user.username).toBe('auth_testadmin');
   });
 
   test('GET /api/auth/me — unauthorized without token', async () => {
@@ -74,21 +77,19 @@ describe('Auth API', () => {
   });
 
   test('POST /api/auth/logout — revokes session', async () => {
-    // Login first to get a token to revoke
-    const loginRes = await request(app)
-      .post('/api/auth/login')
-      .send({ username: 'testadmin', password: 'Admin123!' });
-    const token = loginRes.body.token;
+    // Use the token already obtained from the first login test
+    // This avoids potential race conditions with a second login
+    expect(adminToken).toBeTruthy();
 
     const res = await request(app)
       .post('/api/auth/logout')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
 
     // Token should no longer work
     const meRes = await request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${adminToken}`);
     expect(meRes.status).toBe(401);
   });
 });
