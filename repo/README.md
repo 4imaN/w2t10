@@ -1,3 +1,5 @@
+fullstack
+
 # CineRide Media Operations Platform
 
 Offline-first media operations platform unifying a local movie catalog, editorial content publishing, and ride-request order handling for small entertainment venues and community shuttles.
@@ -5,8 +7,13 @@ Offline-first media operations platform unifying a local movie catalog, editoria
 ## Quick Start
 
 ```bash
+docker-compose up
+```
+
+Or using the modern Docker Compose V2 CLI with a build step:
+
+```bash
 docker compose up --build -d
-open http://localhost:8080
 ```
 
 That's it. Secrets (`JWT_SECRET`, `ENCRYPTION_KEY`) are generated automatically inside the
@@ -24,29 +31,20 @@ The platform is accessible at **http://localhost:8080**.
 | Dispatcher | http://localhost:8080/dispatcher/login |
 | Regular User | http://localhost:8080/login |
 
-## Bootstrap Accounts
+## Demo Credentials
 
-On first startup, the system creates one account per role with **random passwords**.
-Credentials are written to a local file (not to logs) and must be saved immediately.
+The following accounts are pre-seeded on first startup with fixed passwords for demo and testing purposes:
 
-```bash
-# Read bootstrap credentials (first startup only)
-docker compose exec cineride-api cat /app/uploads/.bootstrap-credentials
+| Username | Password | Role | Portal URL |
+|----------|----------|------|------------|
+| admin | DemoAdmin123! | Administrator | /admin/login |
+| editor1 | DemoEditor123! | Editor | /editor/login |
+| reviewer1 | DemoReviewer123! | Reviewer | /reviewer/login |
+| reviewer2 | DemoReviewer123! | Reviewer | /reviewer/login |
+| dispatcher1 | DemoDispatch123! | Dispatcher | /dispatcher/login |
+| user1 | DemoUser123! | Regular User | /login |
 
-# Then delete the file
-docker compose exec cineride-api rm /app/uploads/.bootstrap-credentials
-```
-
-| Username | Role | Portal URL |
-|----------|------|------------|
-| admin | Administrator | /admin/login |
-| editor1 | Editor | /editor/login |
-| reviewer1 | Reviewer | /reviewer/login |
-| reviewer2 | Reviewer | /reviewer/login |
-| dispatcher1 | Dispatcher | /dispatcher/login |
-| user1 | Regular User | /login |
-
-All bootstrap accounts require a **password change on first login**.
+All demo accounts require a **password change on first login**.
 
 ## Architecture
 
@@ -115,65 +113,88 @@ Three Docker containers:
 
 ## Running Tests
 
+All tests run inside dedicated Docker containers. No local `npm install` is needed.
+Test containers are defined in the `test` and `e2e` compose profiles and include
+all required devDependencies (jest, supertest, vitest, Playwright, etc.).
+
 ### Unit tests (no external dependencies)
 
 ```bash
-npm install
-npm run test:unit       # 188 tests — no MongoDB needed
+docker compose --profile test run --rm cineride-test \
+  npx jest unit_tests/ --forceExit --detectOpenHandles --verbose
 ```
 
-### API integration tests (no Docker needed)
-
-Uses `mongodb-memory-server` for an in-process MongoDB instance:
+### API integration tests (requires MongoDB)
 
 ```bash
-npm install
-npm run test:setup-db   # one-time: downloads mongod binary (~90MB, cached)
-npm run test:api:mem    # 21 tests: auth, password change, RBAC
+docker compose --profile test run --rm cineride-test \
+  npx jest API_tests/ --forceExit --detectOpenHandles --verbose --runInBand
 ```
 
-### API integration tests (full suite, requires MongoDB)
+### Full backend test suite (unit + API)
 
 ```bash
-docker compose up -d cineride-db
-./run_tests.sh          # unit + full API integration suite
+docker compose --profile test run --rm cineride-test
 ```
 
 ### Frontend tests
 
 ```bash
-cd frontend && npm test  # 124 tests (vitest + RTL)
+docker compose --profile test run --rm cineride-frontend-test
 ```
 
-### All commands
+### E2E tests (Playwright)
+
+E2E tests run inside a dedicated container that includes Playwright and
+Chromium. The container connects to the app stack via the Docker network.
 
 ```bash
-npm run test:unit       # unit only (no DB)
-npm run test:api:mem    # API with in-memory MongoDB (no Docker)
-npm run test:api        # API with external MongoDB (needs localhost:27017)
-npm run test:setup-db   # pre-download mongod binary for test:api:mem
-```
-
-### E2E smoke tests (Playwright)
-
-Requires the full Docker stack running. Portal rendering tests run without credentials.
-Authenticated tests require `E2E_ADMIN_PASSWORD` (the bootstrap admin password):
-
-```bash
+# Start the stack, then run E2E tests
 docker compose up --build -d
-cd e2e && npm install && npx playwright install chromium
+docker compose --profile e2e run --rm cineride-e2e
 
-# Portal rendering only (no credentials needed)
-npm test
-
-# Full suite with authenticated flows
-E2E_ADMIN_PASSWORD=<admin-bootstrap-password> npm test
+# Override the admin password if needed
+E2E_ADMIN_PASSWORD=DemoAdmin123! docker compose --profile e2e run --rm cineride-e2e
 ```
+
+## Verification
+
+After running `docker-compose up`, verify the system is working:
+
+1. **Health check** — confirm the API is running:
+   ```bash
+   curl http://localhost:8080/api/health
+   # Expected: {"status":"ok", ...}
+   ```
+
+2. **Open the login page** — navigate to http://localhost:8080/login in your browser.
+
+3. **Sign in as admin** — go to http://localhost:8080/admin/login and log in with:
+   - Username: `admin`
+   - Password: `DemoAdmin123!`
+   - Complete the forced password change on first login.
+
+4. **Create a movie** — from the dashboard, navigate to Movies → + Add Movie, fill in the title and details, then submit.
+
+5. **Confirm the movie appears** — the new movie should be visible in the Movies list at http://localhost:8080/movies.
+
+6. **Verify API directly** (optional):
+   ```bash
+   # Login via API
+   curl -X POST http://localhost:8080/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"admin","password":"DemoAdmin123!","portal":"admin"}'
+
+   # List movies (use the token from login response)
+   curl http://localhost:8080/api/movies \
+     -H "Authorization: Bearer <token>"
+   ```
 
 ## API Documentation
 
-- Interactive Swagger UI: `http://localhost:8080/api/docs`
-- Raw OpenApi JSON :'GET /api/docs.json'
+- Swagger UI: http://localhost:8080/api/docs
+- OpenAPI JSON: http://localhost:8080/api/docs.json
+
 ## Configuration
 
 Runtime configuration is managed through the Config Center (Admin → Config). Changes take effect within 60 seconds without server restart.
@@ -194,23 +215,29 @@ repo/
 │   └── src/
 │       ├── models/         # 15 Mongoose schemas
 │       ├── middleware/      # Auth, RBAC, validation, errors
-│       ├── routes/          # 15 route modules
-│       ├── services/        # Business logic layer
+│       ├── routes/          # 16 route modules + manifest
+│       ├── services/        # 12 business logic services
 │       ├── utils/           # Crypto, masking, state machine
 │       ├── jobs/            # Scheduled cron jobs
 │       └── app.js           # Express bootstrap
 ├── frontend/               # React SPA
 │   └── src/
 │       ├── components/     # Shared UI (layout, status, toast)
-│       ├── features/       # Feature pages (10 modules)
+│       ├── features/       # Feature pages (13 modules)
 │       ├── store/          # Zustand auth store
 │       ├── services/       # API client
+│       ├── __tests__/      # Frontend unit tests (vitest + RTL)
 │       └── App.jsx         # Root with routing
-├── unit_tests/             # Unit tests (crypto, masking, state machine)
-├── API_tests/              # Integration tests (auth, movies, rides, content, ledger, sensors)
+├── unit_tests/             # Backend unit tests (crypto, masking, state machine)
+├── API_tests/              # API integration tests (auth, movies, rides, content, ledger, sensors)
+├── e2e/                    # End-to-end smoke tests (Playwright)
+├── scripts/                # Utility scripts (DB setup, health checks)
 ├── docker-compose.yml      # 3-container orchestration
 ├── Dockerfile.api          # API container build
+├── Dockerfile.e2e          # Playwright E2E test runner
 ├── Dockerfile.frontend     # Frontend multi-stage build
+├── Dockerfile.frontend-test # Frontend test runner (vitest)
+├── Dockerfile.test         # Backend test runner (jest + supertest)
 ├── nginx.conf              # Nginx reverse proxy + SPA
-└── run_tests.sh            # Unified test runner
+└── run_tests.sh            # Docker-based test runner
 ```

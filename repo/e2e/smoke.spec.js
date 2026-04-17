@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE = process.env.E2E_BASE_URL || 'http://localhost:8080';
-const E2E_PASSWORD = process.env.E2E_PASSWORD || 'E2eTestPass99!';
+const E2E_PASSWORD = process.env.E2E_PASSWORD || 'DemoEditor123!';
 
 async function apiLogin(request, username, password, portal) {
   const res = await request.post(`${BASE}/api/auth/login`, {

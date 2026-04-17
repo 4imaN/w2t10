@@ -7,7 +7,7 @@
     "test": "jest --forceExit --detectOpenHandles --verbose",
     "test:unit": "jest unit_tests/ --forceExit --detectOpenHandles --verbose",
     "test:api": "node scripts/check-mongo.js && jest API_tests/ --forceExit --detectOpenHandles --verbose --runInBand",
-    "test:api:mem": "jest API_tests/auth-password.test.js API_tests/rbac-executable.test.js API_tests/password-gate.test.js API_tests/movie-import-exec.test.js API_tests/phone-encryption.test.js --forceExit --detectOpenHandles --verbose",
+    "test:api:mem": "jest API_tests/auth-password.test.js API_tests/rbac-executable.test.js API_tests/password-gate.test.js API_tests/movie-import-exec.test.js API_tests/phone-encryption.test.js API_tests/endpoint-coverage.test.js API_tests/strengthened-assertions.test.js --forceExit --detectOpenHandles --verbose",
     "test:setup-db": "node scripts/setup-test-db.js"
   },
   "dependencies": {

@@ -1,0 +1,26 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install root-level dependencies (includes jest, supertest, mongodb-memory-server)
+COPY package*.json ./
+RUN npm ci
+
+# Copy the API source (tests import from api/src/)
+COPY api/ api/
+
+# Install API dependencies
+RUN cd api && npm ci && cd ..
+
+# Copy test suites
+COPY unit_tests/ unit_tests/
+COPY API_tests/ API_tests/
+COPY jest.config.js ./
+COPY scripts/ scripts/
+
+ENV NODE_ENV=test
+ENV JWT_SECRET=test-secret-docker
+ENV ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+ENTRYPOINT ["npx", "jest"]
+CMD ["--forceExit", "--detectOpenHandles", "--verbose"]

@@ -19,8 +19,16 @@ async function seed(skipConnect = false) {
     console.log('Connected to MongoDB for seeding');
   }
 
-  // Bootstrap users with random one-time passwords.
-  // Passwords are printed to stdout ONCE during initial seed and must be changed on first login.
+  // Bootstrap users with fixed demo passwords.
+  // All accounts require password change on first login.
+  const DEMO_PASSWORDS = {
+    administrator: 'DemoAdmin123!',
+    editor: 'DemoEditor123!',
+    reviewer: 'DemoReviewer123!',
+    dispatcher: 'DemoDispatch123!',
+    regular_user: 'DemoUser123!'
+  };
+
   const roles = [
     { username: 'admin', role: 'administrator', display_name: 'System Admin' },
     { username: 'editor1', role: 'editor', display_name: 'Jane Editor' },
@@ -35,7 +43,7 @@ async function seed(skipConnect = false) {
   for (const u of roles) {
     const exists = await User.findOne({ username: u.username });
     if (!exists) {
-      const password = generatePassword();
+      const password = DEMO_PASSWORDS[u.role];
       await User.create({
         username: u.username,
         password_hash: await hashPassword(password),

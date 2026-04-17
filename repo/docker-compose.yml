@@ -50,6 +50,48 @@ services:
       - cineride-net
     restart: unless-stopped
 
+  cineride-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: cineride-test
+    environment:
+      - MONGO_URI=mongodb://cineride-db:27017/cineride_test
+      - NODE_ENV=test
+      - JWT_SECRET=test-secret-docker
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    depends_on:
+      cineride-db:
+        condition: service_healthy
+    networks:
+      - cineride-net
+    profiles:
+      - test
+
+  cineride-frontend-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend-test
+    container_name: cineride-frontend-test
+    profiles:
+      - test
+
+  cineride-e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    container_name: cineride-e2e
+    environment:
+      - E2E_BASE_URL=http://cineride-frontend:80
+      - E2E_ADMIN_PASSWORD=${E2E_ADMIN_PASSWORD:-DemoAdmin123!}
+    depends_on:
+      cineride-frontend:
+        condition: service_started
+    networks:
+      - cineride-net
+    profiles:
+      - e2e
+
 volumes:
   cineride-data:
   cineride-uploads:
